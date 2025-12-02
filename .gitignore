@@ -17,7 +17,11 @@ JLinkLog.txt
 *.uvguix.*
 *.uvoptx
 
-# Keil output folders (═и│г Keil ╗с░╤└м╗°╔·│╔╘┌╒т┴╜╕Ў╬─╝■╝╨└я)
+# Keil output folders (═ия┐╜я┐╜ Keil я┐╜я┐╜я┐╜я┐╜я┐╜я┐╜я┐╜я┐╜я┐╜я┐╜я┐╜я┐╜я┐╜я┐╜я┐╜я┐╜я┐╜я┐╜я┐╜я┐╜─╝я┐╜я┐╜я┐╜я┐╜я┐╜)
 Objects/
 Listings/
 RTE/
+
+.vscode/
+*.log
+*.ipch
