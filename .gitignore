@@ -1,0 +1,23 @@
+# Keil MDK generated files
+*.o
+*.d
+*.crf
+*.dep
+*.htm
+*.lnp
+*.sct
+*.lst
+*.map
+*.axf
+*.hex
+*.build_log.htm
+*.ieee_denorms
+*.bak
+JLinkLog.txt
+*.uvguix.*
+*.uvoptx
+
+# Keil output folders (通常 Keil 会把垃圾生成在这两个文件夹里)
+Objects/
+Listings/
+RTE/
