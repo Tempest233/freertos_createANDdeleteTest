@@ -147,7 +147,7 @@ void MX_FREERTOS_Init(void)
               (const char *)"toRead",
               (uint16_t)128,
               (void *)NULL,
-              (UBaseType_t)2,
+              (UBaseType_t)3,
               (TaskHandle_t *)&Queue_read);
 
   Queue_count = xQueueCreate(5, sizeof(int));
@@ -207,8 +207,10 @@ void Queue_write_Entry(void *pvParameters)
   int send_data=100;
   for (;;)
   {
+    printf("send data: %d  \n",send_data);
     if(xQueueSend(Queue_count,&send_data,0) == pdPASS)
-    printf("send data: %d   ",send_data);
+   // printf("send data: %d  \n",send_data);
+		send_data++;
     vTaskDelay(pdMS_TO_TICKS(1000));
   }
 }
