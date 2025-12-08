@@ -27,6 +27,7 @@
 /* USER CODE BEGIN Includes */
 #include "string.h"
 #include "stdio.h"
+#include "queue.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -52,12 +53,16 @@ TaskHandle_t LED1_Handle;
 TaskHandle_t KEY0_Handle;
 TaskHandle_t KEY1_Handle;
 TaskHandle_t USART_Handle;
+TaskHandle_t Queue_write;
+TaskHandle_t Queue_read;
 
 void LED0_Entry(void *pvParameters); // 函数声明
 void LED1_Entry(void *pvParameters);
 void KEY0_Entry(void *pvParameters);
 void KEY1_Entry(void *pvParameters);
 void USART_Entry(void *pvParameters);
+void Queue_write_Entry(void *pvParameters);
+void Queue_read_Entry(void *pvParameters);
 
 /* USER CODE END Variables */
 osThreadId StartTaskHandle;
@@ -130,7 +135,18 @@ void MX_FREERTOS_Init(void) {
               (void*          )NULL,
               (UBaseType_t    )2,
               (TaskHandle_t*  )&USART_Handle);					
-	
+    xTaskCreate((TaskFunction_t )Queue_write_Entry,  
+              (const char*    )"toWRITE",   
+              (uint16_t       )128, 
+              (void*          )NULL,
+              (UBaseType_t    )2,
+              (TaskHandle_t*  )&Queue_write);			
+    xTaskCreate((TaskFunction_t )Queue_read_Entry,  
+              (const char*    )"toRead",   
+              (uint16_t       )128, 
+              (void*          )NULL,
+              (UBaseType_t    )2,
+              (TaskHandle_t*  )&Queue_read);			
 
  					
   /* USER CODE END Init */

@@ -1,7 +1,7 @@
-# FreeRTOS 任务创建与删除测试
+# FreeRTOS 队列的创建，读取和写入
 
-这是我的第一个 STM32 FreeRTOS 练习项目。
-功能：使用两个按钮控制两个 LED 任务的删除，同时串口打印创建任务的流程。
+这是一个 STM32 FreeRTOS 练习项目。
+功能：写入队列的时打印，读取队列时也打印。
 
 ## 1. 任务流程
 
@@ -14,24 +14,9 @@
 ## 2. 关键代码
 
 ```c
-TaskHandle_t LED_Task_Handle;
-void LED0_Entry(void *pvParameters);
-void LED_Task_Func(void *pvParameters)
-{
-    for(;;)
-    {
-        // 翻转电平
-        HAL_GPIO_TogglePin(GPIOF, GPIO_PIN_9);
-        // 延时 500ms
-        vTaskDelay(pdMS_TO_TICKS(500));
-    }
-}
+#include "queue.h"
+QueueHandle_t xQueueCreate( UBaseType_t uxQueueLength, UBaseType_t uxItemSize );//创建队列
+MyNativeQueue_Handle = xQueueCreate(5, sizeof(int));
+BaseType_t xQueueSend( QueueHandle_t xQueue, const void * pvItemToQueue, TickType_t xTicksToWait );//发送进入队列
+BaseType_t xQueueReceive( QueueHandle_t xQueue, void * pvBuffer, TickType_t xTicksToWait );//接收队列数据
 
-xTaskCreate(
-    (TaskFunction_t )LED_Task_Func,     // 任务函数
-    (const char*    )"LED_Task",        // 名字
-    (uint16_t       )128,               // 堆栈大小
-    (void*          )NULL,              // 传入参数
-    (UBaseType_t    )1,                 // 优先级
-    (TaskHandle_t*  )&LED_Task_Handle   // 句柄
-)
