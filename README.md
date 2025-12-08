@@ -15,7 +15,7 @@
 
 ## 2. 关键代码
 ```c
-
+vTaskSuspend(NULL); //NULL时暂停自己，具体句柄暂停具体任务
 if (flag[0] == 0)
     {
       vTaskSuspend(LED0_Handle);
