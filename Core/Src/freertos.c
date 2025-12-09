@@ -54,6 +54,7 @@ TaskHandle_t task_high;
 
 SemaphoreHandle_t myBinarySem_Handle;
 SemaphoreHandle_t myCountingSem;
+SemaphoreHandle_t mymutex;
 
 void task_low_Entry(void *pvParameters); // 函数声明
 void task_medium_Entry(void *pvParameters);
@@ -127,6 +128,7 @@ void MX_FREERTOS_Init(void)
   }
   xSemaphoreGive(myBinarySem_Handle);
   myCountingSem = xSemaphoreCreateCounting(5,0);
+  mymutex = xSemaphoreCreateMutex();
   if (myCountingSem == NULL)
   {
     printf("Create Error!\r\n");

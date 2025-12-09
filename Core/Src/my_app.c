@@ -5,26 +5,27 @@
 #include "queue.h"     
 #include "semphr.h" 
 #include <stdio.h> 
-extern QueueHandle_t myCountingSem;
+extern SemaphoreHandle_t myCountingSem;
 extern SemaphoreHandle_t myBinarySem_Handle;
+extern SemaphoreHandle_t mymutex;
 
 void task_low_Entry(void *pvParameters)
 {
   
   for (;;)
   {
-  if(xSemaphoreTake(myBinarySem_Handle, portMAX_DELAY) == pdTRUE)
+  if(xSemaphoreTake(mymutex, portMAX_DELAY) == pdTRUE)
   {
     printf("[Low] : Got Semaphore! Working...\r\n");
-    for(int i=0; i<3; i++)
+    for(int i=0; i<10; i++)
         {
-            printf("[Low] : Working %d/3...\r\n", i+1);
-            HAL_Delay(1000); 
+            printf("[Low] : Working %d/10... (My Prio is %d)\r\n", i+1,(int)uxTaskPriorityGet(NULL));
+            HAL_Delay(500); 
         }
-    printf("[Low] : Give Semaphore.\r\n");
-        xSemaphoreGive(myBinarySem_Handle);
+    printf("[Low] : Give Semaphore.(My Prio is %d)\r\n",(int)uxTaskPriorityGet(NULL));
+        xSemaphoreGive(mymutex);
   }
-  vTaskDelay(pdMS_TO_TICKS(1000));
+  vTaskDelay(pdMS_TO_TICKS(10000));
   }
 }
 void task_medium_Entry(void *pvParameters)
@@ -33,7 +34,7 @@ void task_medium_Entry(void *pvParameters)
   for (;;)
   {
     printf("[Middle]: I am Running! (Blocking Low)\r\n");
-      HAL_Delay(5000);
+      HAL_Delay(2000);
    printf("[Middle]: Job Done. Sleep.\r\n");
     
     // 睡很久，方便观察下一轮
@@ -47,9 +48,9 @@ void task_high_Entry(void *pvParameters)
   for (;;)
   {
      printf("[High] : I want Semaphore!\r\n");
-     xSemaphoreTake(myBinarySem_Handle, portMAX_DELAY);
+     xSemaphoreTake(mymutex, portMAX_DELAY);
     printf("[High] : Finally Got it!!!\r\n");
-    xSemaphoreGive(myBinarySem_Handle);
+    xSemaphoreGive(mymutex);
     
     vTaskDelay(pdMS_TO_TICKS(10000));
   }
