@@ -192,12 +192,15 @@ void LED0_Entry(void *pvParameters)
 {
   for (;;)
   {
+    xSemaphoreTake(myBinarySem_Handle,portMAX_DELAY);
     HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
+    printf("led toggle!\r\n");
     vTaskDelay(pdMS_TO_TICKS(500));
   }
 }
 void LED1_Entry(void *pvParameters)
 {
+   vTaskSuspend(NULL);
   for (;;)
   {
     HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
@@ -218,7 +221,7 @@ void KEY0_Entry(void *pvParameters)
         // 按下 KEY0：点亮 LED0 (置低电平)，发送串口消息
         // 串口发送
         printf("KEY0 Pressed! \r\n");
-        flag[0] = 0;
+        xSemaphoreGive(myBinarySem_Handle);
 
         while (HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_4) == GPIO_PIN_RESET)
         {
@@ -232,6 +235,7 @@ void KEY0_Entry(void *pvParameters)
 }
 void KEY1_Entry(void *pvParameters)
 {
+   vTaskSuspend(NULL);
   for (;;)
   {
     if (HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_3) == GPIO_PIN_RESET)
@@ -256,6 +260,7 @@ void KEY1_Entry(void *pvParameters)
 
 void USART_Entry(void *pvParameters)
 {
+   vTaskSuspend(NULL);
   for (;;)
   {
     if (flag[0] == 0)
