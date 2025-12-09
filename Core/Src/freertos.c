@@ -48,19 +48,17 @@
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
 volatile int flag[2] = {1, 1};
-TaskHandle_t LED0_Handle; // 原生句柄
-TaskHandle_t LED1_Handle;
-TaskHandle_t KEY0_Handle;
-TaskHandle_t KEY1_Handle;
-TaskHandle_t USART_Handle;
+TaskHandle_t task_low; // 原生句柄
+TaskHandle_t task_medium;
+TaskHandle_t task_high;
+
 SemaphoreHandle_t myBinarySem_Handle;
 SemaphoreHandle_t myCountingSem;
 
-void LED0_Entry(void *pvParameters); // 函数声明
-void LED1_Entry(void *pvParameters);
-void KEY0_Entry(void *pvParameters);
-void KEY1_Entry(void *pvParameters);
-void USART_Entry(void *pvParameters);
+void task_low_Entry(void *pvParameters); // 函数声明
+void task_medium_Entry(void *pvParameters);
+void task_high_Entry(void *pvParameters);
+
 
 /* USER CODE END Variables */
 osThreadId StartTaskHandle;
@@ -99,46 +97,35 @@ void MX_FREERTOS_Init(void)
 {
   /* USER CODE BEGIN Init */
 
-  xTaskCreate((TaskFunction_t)LED0_Entry,
+  xTaskCreate((TaskFunction_t)task_low_Entry,
               (const char *)"LED0",
               (uint16_t)128,
               (void *)NULL,
-              (UBaseType_t)2, // 假设优先级为 2
-              (TaskHandle_t *)&LED0_Handle);
+              (UBaseType_t)5, // 假设优先级为 2
+              (TaskHandle_t *)&task_low);
 
-  xTaskCreate((TaskFunction_t)LED1_Entry,
+  xTaskCreate((TaskFunction_t)task_medium_Entry,
               (const char *)"LED1",
               (uint16_t)128,
               (void *)NULL,
-              (UBaseType_t)2,
-              (TaskHandle_t *)&LED1_Handle);
+              (UBaseType_t)10,
+              (TaskHandle_t *)&task_medium);
 
-  xTaskCreate((TaskFunction_t)KEY0_Entry,
+  xTaskCreate((TaskFunction_t)task_high_Entry,
               (const char *)"KEY0",
               (uint16_t)128,
               (void *)NULL,
-              (UBaseType_t)2,
-              (TaskHandle_t *)&KEY0_Handle);
+              (UBaseType_t)15,
+              (TaskHandle_t *)&task_high);
 
-  xTaskCreate((TaskFunction_t)KEY1_Entry,
-              (const char *)"KEY1",
-              (uint16_t)128,
-              (void *)NULL,
-              (UBaseType_t)2,
-              (TaskHandle_t *)&KEY1_Handle);
-
-  xTaskCreate((TaskFunction_t)USART_Entry,
-              (const char *)"Usart",
-              (uint16_t)128,
-              (void *)NULL,
-              (UBaseType_t)2,
-              (TaskHandle_t *)&USART_Handle);
+  
 
   myBinarySem_Handle = xSemaphoreCreateBinary();
   if (myBinarySem_Handle == NULL)
   {
     printf("Create Error!\r\n");
   }
+  xSemaphoreGive(myBinarySem_Handle);
   myCountingSem = xSemaphoreCreateCounting(5,0);
   if (myCountingSem == NULL)
   {
@@ -193,86 +180,50 @@ void StartDefaultTask(void const *argument)
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
-void LED0_Entry(void *pvParameters)
+void task_low_Entry(void *pvParameters)
 {
   
   for (;;)
   {
-    xSemaphoreTake(myBinarySem_Handle,portMAX_DELAY);
-    HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
-    printf("led toggle!\r\n");
-    vTaskDelay(pdMS_TO_TICKS(500));
-  }
-}
-void LED1_Entry(void *pvParameters)
-{
-  int car_number=0;
-  for (;;)
+  if(xSemaphoreTake(myBinarySem_Handle, portMAX_DELAY) == pdTRUE)
   {
-    car_number=uxSemaphoreGetCount(myCountingSem);
-    printf("now there are %d cars in this area.trying to park...\r\n",car_number);
-    if (xSemaphoreGive(myCountingSem) == pdTRUE)
-    {
-    printf("parking success!\r\n");
-    }
-    vTaskDelay(pdMS_TO_TICKS(1000));
-  }
-}
-
-void KEY0_Entry(void *pvParameters)
-{
-  
-  for (;;)
-  {
-    //        HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
-    if (HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_4) == GPIO_PIN_RESET)
-    {
-      vTaskDelay(pdMS_TO_TICKS(20)); // 简单的消抖
-      if (HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_4) == GPIO_PIN_RESET)
-      {
-        // 按下 KEY0：点亮 LED0 (置低电平)，发送串口消息
-        // 串口发送
-        printf("KEY0 Pressed! \r\n");
-        xSemaphoreGive(myBinarySem_Handle);
-
-        while (HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_4) == GPIO_PIN_RESET)
+    printf("[Low] : Got Semaphore! Working...\r\n");
+    for(int i=0; i<3; i++)
         {
-          // 这里什么都不用写，就是为了卡住 CPU
+            printf("[Low] : Working %d/3...\r\n", i+1);
+            HAL_Delay(1000); 
         }
-        vTaskDelay(pdMS_TO_TICKS(20));
-      }
-    }
-    vTaskDelay(pdMS_TO_TICKS(10));
+    printf("[Low] : Give Semaphore.\r\n");
+        xSemaphoreGive(myBinarySem_Handle);
+  }
+  vTaskDelay(pdMS_TO_TICKS(1000));
   }
 }
-void KEY1_Entry(void *pvParameters)
+void task_medium_Entry(void *pvParameters)
 {
-   
+  vTaskDelay(pdMS_TO_TICKS(1000));
   for (;;)
   {
-    xSemaphoreTake(myCountingSem,portMAX_DELAY);
-    printf("car out!\r\n");
-    vTaskDelay(pdMS_TO_TICKS(3000));
+    printf("[Middle]: I am Running! (Blocking Low)\r\n");
+      HAL_Delay(5000);
+   printf("[Middle]: Job Done. Sleep.\r\n");
+    
+    // 睡很久，方便观察下一轮
+    vTaskDelay(pdMS_TO_TICKS(10000)); 
   }
 }
 
-void USART_Entry(void *pvParameters)
+void task_high_Entry(void *pvParameters)
 {
-   vTaskSuspend(NULL);
+  vTaskDelay(pdMS_TO_TICKS(2000));
   for (;;)
   {
-    if (flag[0] == 0)
-    {
-      vTaskDelete(LED0_Handle);
-      printf("delete task0 successfully\r\n");
-      flag[0] = 1;
-    }
-    else if (flag[1] == 0)
-    {
-      vTaskDelete(LED1_Handle);
-      printf("delete task1 successfully\r\n");
-      flag[1] = 1;
-    }
+     printf("[High] : I want Semaphore!\r\n");
+     xSemaphoreTake(myBinarySem_Handle, portMAX_DELAY);
+    printf("[High] : Finally Got it!!!\r\n");
+    xSemaphoreGive(myBinarySem_Handle);
+    
+    vTaskDelay(pdMS_TO_TICKS(10000));
   }
 }
 /* USER CODE END Application */
