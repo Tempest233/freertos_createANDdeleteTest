@@ -2,6 +2,7 @@
 
 这是一个 STM32 FreeRTOS 练习项目。
 功能：扫描按键，按下时LED翻转，但是使用队列代替全局变量。
+队列集跳过学习，使用枚举加结构体替代
 队列锁：在任务操作队列期间，允许中断正常‘读写数据’，但将中断触发的‘任务唤醒（调度）’动作，推迟到锁解开之后统一执行
 ## 1. 任务流程
 
@@ -44,4 +45,39 @@ void Queue_read_Entry(void *pvParameters)
     }
   }
 
+}
+
+// 定义一个枚举，标记消息来源
+typedef enum {
+    EVENT_UART,
+    EVENT_CAN,
+    EVENT_KEY
+} EventType_t;
+
+// 定义一个万能结构体
+typedef struct {
+    EventType_t type;  // 消息类型（身份证）
+    uint32_t    data;  // 数据（或者数据的指针）
+} SystemMessage_t;
+
+// --- 任务处理逻辑 ---
+void Task_Process(...) {
+    SystemMessage_t msg;
+    for(;;) {
+        // 只等待这一个队列
+        xQueueReceive(SysQueue, &msg, portMAX_DELAY);
+        
+        // 根据“身份证”分类处理
+        switch (msg.type) {
+            case EVENT_UART: 
+                Handle_UART(msg.data); 
+                break;
+            case EVENT_CAN:  
+                Handle_CAN(msg.data);  
+                break;
+            case EVENT_KEY:  
+                Handle_Key(msg.data);  
+                break;
+        }
+    }
 }
