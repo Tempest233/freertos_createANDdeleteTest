@@ -204,6 +204,7 @@ void StartDefaultTask(void const *argument)
 
 void Queue_write_Entry(void *pvParameters)
 {
+  vTaskSuspend(NULL);
   int send_data=100;
   for (;;)
   {
@@ -216,6 +217,7 @@ void Queue_write_Entry(void *pvParameters)
 }
 void Queue_read_Entry(void *pvParameters)
 {
+  vTaskSuspend(NULL);
   int recv_buffer=0;
   for(;;)
   {
@@ -230,9 +232,10 @@ void Queue_read_Entry(void *pvParameters)
 
 void LED0_Entry(void *pvParameters)
 {
-  vTaskSuspend(NULL);
+  int recv_buffer;
   for (;;)
   {
+    if(xQueueReceive(Queue_count,&recv_buffer,portMAX_DELAY) == pdTRUE)
     HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
     vTaskDelay(pdMS_TO_TICKS(500));
   }
@@ -249,7 +252,7 @@ void LED1_Entry(void *pvParameters)
 
 void KEY0_Entry(void *pvParameters)
 {
-  vTaskSuspend(NULL);
+  int send_data=1;
   for (;;)
   {
     //        HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
@@ -261,11 +264,12 @@ void KEY0_Entry(void *pvParameters)
         // 按下 KEY0：点亮 LED0 (置低电平)，发送串口消息
         // 串口发送
         printf("KEY0 Pressed! \r\n");
-        flag[0] = 0;
-
+        if(xQueueSend(Queue_count,&send_data,0) == pdPASS)
+        {
         while (HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_4) == GPIO_PIN_RESET)
         {
           // 这里什么都不用写，就是为了卡住 CPU
+        }
         }
         vTaskDelay(pdMS_TO_TICKS(20));
       }
