@@ -195,6 +195,7 @@ void StartDefaultTask(void const *argument)
 /* USER CODE BEGIN Application */
 void LED0_Entry(void *pvParameters)
 {
+  
   for (;;)
   {
     xSemaphoreTake(myBinarySem_Handle,portMAX_DELAY);
@@ -205,17 +206,22 @@ void LED0_Entry(void *pvParameters)
 }
 void LED1_Entry(void *pvParameters)
 {
-  printf("trying to park...\r\n");
+  int car_number=0;
   for (;;)
   {
-    xSemaphoreGive(myCountingSem);
+    car_number=uxSemaphoreGetCount(myCountingSem);
+    printf("now there are %d cars in this area.trying to park...\r\n",car_number);
+    if (xSemaphoreGive(myCountingSem) == pdTRUE)
+    {
     printf("parking success!\r\n");
+    }
     vTaskDelay(pdMS_TO_TICKS(1000));
   }
 }
 
 void KEY0_Entry(void *pvParameters)
 {
+  
   for (;;)
   {
     //        HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);

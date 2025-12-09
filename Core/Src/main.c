@@ -160,7 +160,21 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName)
+{
+    /* 
+       如果是调试阶段，可以在这里打个断点。
+       当程序跑到这里时，查看 pcTaskName 变量，就知道是哪个任务炸了！
+    */
+    
+    // 打印报错信息 (如果你有串口)
+    printf("Error: Stack Overflow in task: %s\r\n", pcTaskName);
 
+    // 死循环，卡住现场，防止系统带着错误继续跑
+    // 此时 LED 可能会停止闪烁，你就知道出事了
+    taskDISABLE_INTERRUPTS(); // 关中断，防止其他任务干扰
+    for(;;); 
+}
 /* USER CODE END 4 */
 
 /**
