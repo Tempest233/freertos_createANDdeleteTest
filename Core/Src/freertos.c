@@ -54,6 +54,7 @@ TaskHandle_t KEY0_Handle;
 TaskHandle_t KEY1_Handle;
 TaskHandle_t USART_Handle;
 SemaphoreHandle_t myBinarySem_Handle;
+SemaphoreHandle_t myCountingSem;
 
 void LED0_Entry(void *pvParameters); // 函数声明
 void LED1_Entry(void *pvParameters);
@@ -138,7 +139,11 @@ void MX_FREERTOS_Init(void)
   {
     printf("Create Error!\r\n");
   }
-
+  myCountingSem = xSemaphoreCreateCounting(5,0);
+  if (myCountingSem == NULL)
+  {
+    printf("Create Error!\r\n");
+  }
   /* USER CODE END Init */
 
   /* USER CODE BEGIN RTOS_MUTEX */
@@ -200,11 +205,12 @@ void LED0_Entry(void *pvParameters)
 }
 void LED1_Entry(void *pvParameters)
 {
-   vTaskSuspend(NULL);
+  printf("trying to park...\r\n");
   for (;;)
   {
-    HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
-    vTaskDelay(pdMS_TO_TICKS(500));
+    xSemaphoreGive(myCountingSem);
+    printf("parking success!\r\n");
+    vTaskDelay(pdMS_TO_TICKS(1000));
   }
 }
 
@@ -235,26 +241,12 @@ void KEY0_Entry(void *pvParameters)
 }
 void KEY1_Entry(void *pvParameters)
 {
-   vTaskSuspend(NULL);
+   
   for (;;)
   {
-    if (HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_3) == GPIO_PIN_RESET)
-    {
-      HAL_Delay(20); // 简单的消抖
-      if (HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_3) == GPIO_PIN_RESET)
-      {
-        // 按下 KEY0：点亮 LED0 (置低电平)，发送串口消息
-        // 串口发送
-        printf("KEY1 Pressed! \r\n");
-        flag[1] = 0;
-        while (HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_3) == GPIO_PIN_RESET)
-        {
-          // 这里什么都不用写，就是为了卡住 CPU
-        }
-        vTaskDelay(pdMS_TO_TICKS(20));
-      }
-    }
-    vTaskDelay(pdMS_TO_TICKS(10));
+    xSemaphoreTake(myCountingSem,portMAX_DELAY);
+    printf("car out!\r\n");
+    vTaskDelay(pdMS_TO_TICKS(3000));
   }
 }
 
