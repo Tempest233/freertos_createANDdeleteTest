@@ -60,7 +60,7 @@ void LED1_Entry(void *pvParameters);
 void KEY0_Entry(void *pvParameters);
 void KEY1_Entry(void *pvParameters);
 void USART_Entry(void *pvParameters);
-void TIMER0_Entry(void *pvParameters);
+void TIMER0_Entry(TimerHandle_t xTimer);
 
 /* USER CODE END Variables */
 osThreadId StartTaskHandle;
@@ -133,12 +133,7 @@ void MX_FREERTOS_Init(void) {
               (void*          )NULL,
               (UBaseType_t    )2,
               (TaskHandle_t*  )&USART_Handle);			
-  xTaskCreate((TaskFunction_t )TIMER0_Entry,  
-              (const char*    )"Usart",   
-              (uint16_t       )128, 
-              (void*          )NULL,
-              (UBaseType_t    )2,
-              (TaskHandle_t*  )&TIMER0_HANDLE);				
+	
 	
   timer0=xTimerCreate("led_timer0",pdMS_TO_TICKS(500),pdTRUE,0,TIMER0_Entry);
  					
@@ -193,7 +188,7 @@ void StartDefaultTask(void const * argument)
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
-void TIMER0_Entry(void *pvParameters)
+void TIMER0_Entry(TimerHandle_t xTimer)
 {
   HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
 }
