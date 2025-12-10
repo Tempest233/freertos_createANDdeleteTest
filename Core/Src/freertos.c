@@ -52,12 +52,15 @@ TaskHandle_t LED1_Handle;
 TaskHandle_t KEY0_Handle;
 TaskHandle_t KEY1_Handle;
 TaskHandle_t USART_Handle;
+TaskHandle_t TIMER0_HANDLE;
+TimerHandle_t timer0;
 
 void LED0_Entry(void *pvParameters); // 函数声明
 void LED1_Entry(void *pvParameters);
 void KEY0_Entry(void *pvParameters);
 void KEY1_Entry(void *pvParameters);
 void USART_Entry(void *pvParameters);
+void TIMER0_Entry(void *pvParameters);
 
 /* USER CODE END Variables */
 osThreadId StartTaskHandle;
@@ -117,21 +120,27 @@ void MX_FREERTOS_Init(void) {
               (UBaseType_t    )2,
               (TaskHandle_t*  )&KEY0_Handle);
 							
-	 xTaskCreate((TaskFunction_t )KEY1_Entry,  
+	xTaskCreate((TaskFunction_t )KEY1_Entry,  
               (const char*    )"KEY1",   
               (uint16_t       )128, 
               (void*          )NULL,
               (UBaseType_t    )2,
               (TaskHandle_t*  )&KEY1_Handle);
 		
-		xTaskCreate((TaskFunction_t )USART_Entry,  
+	xTaskCreate((TaskFunction_t )USART_Entry,  
               (const char*    )"Usart",   
               (uint16_t       )128, 
               (void*          )NULL,
               (UBaseType_t    )2,
-              (TaskHandle_t*  )&USART_Handle);					
+              (TaskHandle_t*  )&USART_Handle);			
+  xTaskCreate((TaskFunction_t )TIMER0_Entry,  
+              (const char*    )"Usart",   
+              (uint16_t       )128, 
+              (void*          )NULL,
+              (UBaseType_t    )2,
+              (TaskHandle_t*  )&TIMER0_HANDLE);				
 	
-
+  timer0=xTimerCreate("led_timer0",pdMS_TO_TICKS(500),pdTRUE,0,TIMER0_Entry);
  					
   /* USER CODE END Init */
 
@@ -184,6 +193,11 @@ void StartDefaultTask(void const * argument)
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
+void TIMER0_Entry(void *pvParameters)
+{
+  HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
+}
+
 void LED0_Entry(void *pvParameters)
 {
     for(;;)
@@ -214,7 +228,7 @@ void KEY0_Entry(void *pvParameters)
             // 按下 KEY0：点亮 LED0 (置低电平)，发送串口消息					
             // 串口发送         
 						printf("KEY0 Pressed! \r\n");
-						flag[0]=0;
+						xTimerStart(timer0,0);
 
 					while(HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_4) == GPIO_PIN_RESET)
         {
@@ -238,7 +252,7 @@ if (HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_3) == GPIO_PIN_RESET)
             // 按下 KEY0：点亮 LED0 (置低电平)，发送串口消息					
             // 串口发送         
 						printf("KEY1 Pressed! \r\n");
-						flag[1]=0;
+						xTimerStop(timer0, 0);
 					while(HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_3) == GPIO_PIN_RESET)
         {
             // 这里什么都不用写，就是为了卡住 CPU
