@@ -200,6 +200,7 @@ void TIMER0_Entry(void *pvParameters)
 
 void LED0_Entry(void *pvParameters)
 {
+  vTaskSuspend(NULL);
     for(;;)
     {
         HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
@@ -208,6 +209,7 @@ void LED0_Entry(void *pvParameters)
 }
 void LED1_Entry(void *pvParameters)
 {
+  vTaskSuspend(NULL);
     for(;;)
     {
         HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
@@ -266,6 +268,7 @@ if (HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_3) == GPIO_PIN_RESET)
 
 void USART_Entry(void *pvParameters)
 {
+  vTaskSuspend(NULL);
     for(;;)
     {
 			  if(flag[0]==0)
