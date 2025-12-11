@@ -47,13 +47,14 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-volatile int flag[2] = {1,1};
+
 TaskHandle_t LED0_Handle; // 原生句柄
 TaskHandle_t LED1_Handle;
 TaskHandle_t KEY0_Handle;
 TaskHandle_t KEY1_Handle;
 TaskHandle_t USART_Handle;
 EventGroupHandle_t myEventGroup;
+SemaphoreHandle_t PrintfMutex;
 
 void LED0_Entry(void *pvParameters); // 函数声明
 void LED1_Entry(void *pvParameters);
@@ -130,9 +131,9 @@ void MX_FREERTOS_Init(void) {
               (const char*    )"Usart",   
               (uint16_t       )128, 
               (void*          )NULL,
-              (UBaseType_t    )2,
+              (UBaseType_t    )3,
               (TaskHandle_t*  )&USART_Handle);			
-
+  PrintfMutex = xSemaphoreCreateMutex();
   myEventGroup = xEventGroupCreate();
 	if(myEventGroup == NULL)
   printf("Event Group Create Failed!\r\n");
@@ -220,7 +221,9 @@ void KEY0_Entry(void *pvParameters)
             // 按下 KEY0：点亮 LED0 (置低电平)，发送串口消息					
             // 串口发送         
 						xEventGroupSetBits(myEventGroup,KEY0_PRESS);
+            xSemaphoreTake(PrintfMutex,pdMS_TO_TICKS(1000));
             printf("KEY0 Pressed! %d\r\n",xEventGroupGetBits(myEventGroup));
+            xSemaphoreGive(PrintfMutex);
 					while(HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_4) == GPIO_PIN_RESET)
         {
             // 这里什么都不用写，就是为了卡住 CPU
@@ -237,13 +240,15 @@ void KEY1_Entry(void *pvParameters)
     {
 if (HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_3) == GPIO_PIN_RESET) 
     {
-        HAL_Delay(20); // 简单的消抖
+        vTaskDelay(pdMS_TO_TICKS(20));  // 简单的消抖
         if (HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_3) == GPIO_PIN_RESET)
         {
             // 按下 KEY0：点亮 LED0 (置低电平)，发送串口消息					
             // 串口发送         						
 						xEventGroupSetBits(myEventGroup,KEY1_PRESS);
+            xSemaphoreTake(PrintfMutex,pdMS_TO_TICKS(1000));
             printf("KEY1 Pressed! %d\r\n",xEventGroupGetBits(myEventGroup));
+            xSemaphoreGive(PrintfMutex);
 					while(HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_3) == GPIO_PIN_RESET)
         {
             // 这里什么都不用写，就是为了卡住 CPU
@@ -262,9 +267,12 @@ void USART_Entry(void *pvParameters)
     {
 			uxbits=xEventGroupWaitBits(myEventGroup,KEY0_PRESS|KEY1_PRESS,pdTRUE,pdTRUE,portMAX_DELAY);
       if((uxbits & (KEY0_PRESS|KEY1_PRESS)) == (KEY0_PRESS|KEY1_PRESS))
-       { printf("all bits ready!\r\n");
+       { 
+        xSemaphoreTake(PrintfMutex,pdMS_TO_TICKS(1000));
+         printf("all bits ready! %d\r\n",uxbits);
         HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
         printf("all bits set!\r\n");
+        xSemaphoreGive(PrintfMutex);
        }
        else
        printf("error!");
