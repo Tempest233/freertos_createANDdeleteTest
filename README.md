@@ -1,7 +1,10 @@
 # FreeRTOS 队列的创建，读取和写入
 
-这是一个 STM32 FreeRTOS 练习项目。
-功能：写入队列的时打印，读取队列时也打印。
+特性：  
+1.FIFO  
+2.读取后销毁  
+3.是值的拷贝，不是引用(所以效率比较低，不如调度引用的指针)  
+功能：写入队列的时打印，读取队列时也打印。  
 队列锁：在任务操作队列期间，允许中断正常‘读写数据’，但将中断触发的‘任务唤醒（调度）’动作，推迟到锁解开之后统一执行
 ## 1. 任务流程
 
@@ -18,8 +21,10 @@
 QueueHandle_t xQueueCreate( UBaseType_t uxQueueLength, UBaseType_t uxItemSize );//创建队列
 MyNativeQueue_Handle = xQueueCreate(5, sizeof(int));
 BaseType_t xQueueSend( QueueHandle_t xQueue, const void * pvItemToQueue, TickType_t xTicksToWait );//发送进入队列
-BaseType_t xQueueReceive( QueueHandle_t xQueue, void * pvBuffer, TickType_t xTicksToWait );//接收队列数据
-
+BaseType_t xQueueReceive( QueueHandle_t xQueue, void * pvBuffer, TickType_t xTicksToWait );//接收队列数据，收完销毁
+BaseType_t xQueuePeek()//只看不取
+BaseType_t xQueueSendToFront()//插队，直接放在队头
+BaseType_t xQueueOverwrite() //覆写，只有队列长度为1时可用
 void Queue_write_Entry(void *pvParameters)
 {
   int send_data=100;
