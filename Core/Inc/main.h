@@ -63,7 +63,8 @@ void Error_Handler(void);
 #define LED1_GPIO_Port GPIOF
 
 /* USER CODE BEGIN Private defines */
-
+#define KEY0_PRESS (1<<0)
+#define KEY1_PRESS (1<<1)
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus
