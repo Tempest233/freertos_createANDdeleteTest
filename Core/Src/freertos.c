@@ -250,9 +250,10 @@ void KEY1_Entry(void *pvParameters)
    
   for (;;)
   {
+    vTaskDelay(pdMS_TO_TICKS(3000));
     xSemaphoreTake(myCountingSem,portMAX_DELAY);
     printf("car out!\r\n");
-    vTaskDelay(pdMS_TO_TICKS(3000));
+    
   }
 }
 
