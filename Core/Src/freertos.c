@@ -131,7 +131,7 @@ void MX_FREERTOS_Init(void) {
               (const char*    )"Usart",   
               (uint16_t       )128, 
               (void*          )NULL,
-              (UBaseType_t    )3,
+              (UBaseType_t    )2,
               (TaskHandle_t*  )&USART_Handle);			
   PrintfMutex = xSemaphoreCreateMutex();
   myEventGroup = xEventGroupCreate();
@@ -244,10 +244,10 @@ if (HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_3) == GPIO_PIN_RESET)
         if (HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_3) == GPIO_PIN_RESET)
         {
             // 按下 KEY0：点亮 LED0 (置低电平)，发送串口消息					
-            // 串口发送         						
-						xEventGroupSetBits(myEventGroup,KEY1_PRESS);
+            // 串口发送         							
             xSemaphoreTake(PrintfMutex,pdMS_TO_TICKS(1000));
             printf("KEY1 Pressed! %d\r\n",xEventGroupGetBits(myEventGroup));
+            xEventGroupSetBits(myEventGroup,KEY1_PRESS);
             xSemaphoreGive(PrintfMutex);
 					while(HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_3) == GPIO_PIN_RESET)
         {
