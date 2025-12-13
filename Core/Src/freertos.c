@@ -191,9 +191,10 @@ void StartDefaultTask(void const * argument)
 /* USER CODE BEGIN Application */
 void LED0_Entry(void *pvParameters)
 { 
-  vTaskSuspend(NULL);
+ 
     for(;;)
     {
+      if(ulTaskNotifyTake(pdTRUE,portMAX_DELAY)>0)
         HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
         vTaskDelay(pdMS_TO_TICKS(500));
     }
@@ -220,10 +221,9 @@ void KEY0_Entry(void *pvParameters)
         {
             // 按下 KEY0：点亮 LED0 (置低电平)，发送串口消息					
             // 串口发送         
-						xEventGroupSetBits(myEventGroup,KEY0_PRESS);
-            xSemaphoreTake(PrintfMutex,pdMS_TO_TICKS(1000));
-            printf("KEY0 Pressed! %d\r\n",xEventGroupGetBits(myEventGroup));
-            xSemaphoreGive(PrintfMutex);
+					xTaskNotifyGive(LED0_Handle);
+            printf("KEY0 Pressed! \r\n");
+           
 					while(HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_4) == GPIO_PIN_RESET)
         {
             // 这里什么都不用写，就是为了卡住 CPU
@@ -245,10 +245,9 @@ if (HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_3) == GPIO_PIN_RESET)
         {
             // 按下 KEY0：点亮 LED0 (置低电平)，发送串口消息					
             // 串口发送         							
-            xSemaphoreTake(PrintfMutex,pdMS_TO_TICKS(1000));
-            printf("KEY1 Pressed! %d\r\n",xEventGroupGetBits(myEventGroup));
-            xEventGroupSetBits(myEventGroup,KEY1_PRESS);
-            xSemaphoreGive(PrintfMutex);
+           
+            printf("KEY1 Pressed! \r\n");
+            
 					while(HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_3) == GPIO_PIN_RESET)
         {
             // 这里什么都不用写，就是为了卡住 CPU
@@ -262,6 +261,7 @@ if (HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_3) == GPIO_PIN_RESET)
 
 void USART_Entry(void *pvParameters)
 {
+vTaskSuspend(NULL);
   uint32_t uxbits;
     for(;;)
     {
