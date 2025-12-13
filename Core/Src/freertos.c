@@ -191,20 +191,24 @@ void StartDefaultTask(void const * argument)
 /* USER CODE BEGIN Application */
 void LED0_Entry(void *pvParameters)
 { 
- 
+ int recv_data;
     for(;;)
     {
-      if(ulTaskNotifyTake(pdTRUE,portMAX_DELAY)>0)
-        HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
-        vTaskDelay(pdMS_TO_TICKS(500));
+      vTaskDelay(pdMS_TO_TICKS(1000));
+      if(xTaskNotifyWait(0,0,&recv_data,portMAX_DELAY)==pdTRUE)
+        printf("receive:%d \r\n",recv_data);
+        
+        
     }
 }
 void LED1_Entry(void *pvParameters)
 {
-  vTaskSuspend(NULL);
+  int send_data=100;
     for(;;)
     {
+      if(xTaskNotify(LED0_Handle,send_data,eSetValueWithOverwrite)==pdTRUE)
         HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+        send_data++;
         vTaskDelay(pdMS_TO_TICKS(500));
     }
 }
@@ -221,7 +225,7 @@ void KEY0_Entry(void *pvParameters)
         {
             // 按下 KEY0：点亮 LED0 (置低电平)，发送串口消息					
             // 串口发送         
-					xTaskNotifyGive(LED0_Handle);
+					xTaskNotify(LED0_Handle,1<<0,eSetBits);
             printf("KEY0 Pressed! \r\n");
            
 					while(HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_4) == GPIO_PIN_RESET)
@@ -230,7 +234,7 @@ void KEY0_Entry(void *pvParameters)
         }  
            vTaskDelay(pdMS_TO_TICKS(20));
         }
-        }
+     }
      vTaskDelay(pdMS_TO_TICKS(10));   
     }
 }

@@ -1,12 +1,27 @@
-# FreeRTOS 任务通知(事件组版)
+# FreeRTOS 任务通知(总结版)
 
-功能：使用任务通知替代事件组，KEY0，KEY1翻转LED0。
-心得：  
+功能：使用任务通知替代队列，私有邮箱。
+>心得：  
 1.C语言的强制类型转换：虽然地址都是同一个地方，但是他的名字经过转换后可以不一样。不过要注意生命周期  
 如：Human_t *pFake = (Human_t *)pReal;pReal是TCB_t类型的。详细见关键代码  
 1.1.分配内存和释放内存：  
 MyParam_t *p = pvPortMalloc(sizeof(MyParam_t));  
 vPortFree(p);  
+2.如何决定使用事件组还是任务通知？`main.c`  
+处理多个独立标志位时(A or B or C)时，使用任务通知  
+处理复杂同步时(A and B and C)时，使用事件组  
+处理邮箱时，私人邮箱用任务通知，公开邮箱用队列  
+
+| 场景 | 最佳选型 | 核心理由 |
+| :--- | :--- | :--- |
+| **A 叫 B 干活** (最常用) | **任务通知** (Give/Take) | **最快**，最省内存。 |
+| **A 传数据流给 B** (串口/ADC) | **队列** (Queue) | 有缓冲深度，防丢包，FIFO。 |
+| **A 传最新状态给 B** (电压/模式) | **任务通知** (Notify/Wait) | 即“私人邮箱”，自带**覆盖**功能。 |
+| **大家抢同一个外设** (串口/I2C) | **互斥锁** (Mutex) | 支持**优先级继承**，防止死锁。 |
+| **集齐七龙珠** (复杂同步) | **事件组** (EventGroup) | 逻辑清晰，代码简单。 |
+| **广播** (大家一起醒) | **事件组** (EventGroup) | 一呼百应。 |
+
+
 ## 1. 任务流程
 任务通知是TCB自带的，无需创建。直接使用任务句柄
 1. **定义任务句柄** (身份证)
@@ -32,7 +47,7 @@ BaseType_t xTaskNotify( TaskHandle_t xTaskToNotify,  uint32_t ulValue,  eNotifyA
 BaseType_t xTaskNotifyWait( uint32_t ulBitsToClearOnEntry, //进门之前干什么，一般填0
                             uint32_t ulBitsToClearOnExit,  //等到通知并返回之后，要清除哪些位？0=peek，0xFFFFFFFF=全部清零
                             uint32_t *pulNotificationValue, //用来接收数据的变量的地址（指针）
-                            TickType_t xTicksToWait );//等待时间
+                            TickType_t xTicksToWait );      //等待时间
 BaseType_t xTaskNotifyAndQuery(+uint32_t *pulPreviousNotificationValue)
 //在修改通知值之前，会把修改前的值保存到你指定的变量里
 
