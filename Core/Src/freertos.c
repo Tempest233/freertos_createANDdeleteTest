@@ -191,21 +191,24 @@ void StartDefaultTask(void const * argument)
 /* USER CODE BEGIN Application */
 void LED0_Entry(void *pvParameters)
 { 
- 
+  int car_numbers=0;
     for(;;)
-    {
-      if(ulTaskNotifyTake(pdTRUE,portMAX_DELAY)>0)
-        HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
-        vTaskDelay(pdMS_TO_TICKS(500));
+    {  
+      vTaskDelay(pdMS_TO_TICKS(3000));
+      car_numbers=ulTaskNotifyTake(pdFALSE,portMAX_DELAY);
+      if(car_numbers>0)
+        printf("car out! now there are %d cars \r\n",car_numbers);
+        
     }
 }
 void LED1_Entry(void *pvParameters)
 {
-  vTaskSuspend(NULL);
+  
     for(;;)
     {
-        HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
-        vTaskDelay(pdMS_TO_TICKS(500));
+        xTaskNotifyGive(LED0_Handle);
+        printf("parking success!\r\n");
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
 
