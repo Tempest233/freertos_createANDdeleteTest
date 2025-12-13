@@ -1,6 +1,6 @@
 # FreeRTOS 任务通知(事件组版)
 
-功能：使用任务通知替代二值信号量，KEY0翻转LED0。
+功能：使用任务通知替代事件组，KEY0，KEY1翻转LED0。
 心得：  
 1.C语言的强制类型转换：虽然地址都是同一个地方，但是他的名字经过转换后可以不一样。不过要注意生命周期  
 如：Human_t *pFake = (Human_t *)pReal;pReal是TCB_t类型的。详细见关键代码  
@@ -28,7 +28,7 @@ uint32_t ulTaskNotifyTake( BaseType_t xClearCountOnExit,   TickType_t xTicksToWa
 //全功能版，代替任务组/邮箱
 BaseType_t xTaskNotify( TaskHandle_t xTaskToNotify,  uint32_t ulValue,  eNotifyAction eAction );
 //可传32位数据，位操作(目标任务句柄，要传的数据，核心动作)
-//核心动作：eSetBits(按位或)，eSetValueWithOverwrite(强制覆盖)，eSetValueWithoutOverwrite(保留写入)，eIncrement(=通知值+1)，eNoAction(只唤醒任务)
+//核心动作：eSetBits(按位或)，eSetValueWithOverwrite(强制覆盖即模拟邮箱)，eSetValueWithoutOverwrite(保留写入)，eIncrement(=通知值+1)，eNoAction(只唤醒任务)
 BaseType_t xTaskNotifyWait( uint32_t ulBitsToClearOnEntry, //进门之前干什么，一般填0
                             uint32_t ulBitsToClearOnExit,  //等到通知并返回之后，要清除哪些位？0=peek，0xFFFFFFFF=全部清零
                             uint32_t *pulNotificationValue, //用来接收数据的变量的地址（指针）
