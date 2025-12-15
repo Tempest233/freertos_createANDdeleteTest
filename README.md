@@ -37,3 +37,15 @@ xTimerStop(TimerHandle, 0);
 xTimerChangePeriod(TimerHandle, pdMS_TO_TICKS(500), 0);// 把周期改成 500ms，并立刻启动
 BaseType_t xTimerReset( TimerHandle_t  xTimer, const TickType_t xTicksToWait);//复位
 BaseType_t xTimerDelete( TimerHandle_t  xTimer, const TickType_t xTicksToWait); //删除
+
+
+BaseType_t xTimerStartFromISR( 
+    TimerHandle_t xTimer,                   // 定时器句柄
+    BaseType_t *pxHigherPriorityTaskWoken   // [回传] 是否需要切换任务？
+);
+BaseType_t xTimerStopFromISR( 
+    TimerHandle_t xTimer,                   // 定时器句柄
+    BaseType_t *pxHigherPriorityTaskWoken   // [回传] 是否需要切换任务？
+);
+xTimerResetFromISR() //在中断中复位软件定时器定时 
+xTimerChangePeriodFromISR() //在中断中更改软件定时器的定时超时时间
