@@ -20,12 +20,10 @@ void EXTI4_IRQHandler(void)
     HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_4);
 }
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){}；
-SemaphoreHandle_t myBinarySem_Handle; 
-myBinarySem_Handle = xSemaphoreCreateBinary();//创建信号量
 
-BaseType_t *pxHigherPriorityTaskWoken = pdFALSE;//如果该函数唤醒了一个优先级比当前运行任务更高的任务，API会把这个变量置为 pdTRUE
-portYIELD_FROM_ISR(xHigherPriorityTaskWoken)//放在回调函数的最后一行，用于中断结束时切换到高优先级任务
 
+
+xTaskGetCurrentTaskHandle()//获取被中断打断的那个任务的句柄
 //////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////信号量相关API//////////////////////////////////////
@@ -62,6 +60,9 @@ BaseType_t xQueueReceiveFromISR(
     void *pvBuffer,                         // 接收数据的缓冲区【地址】
     BaseType_t *pxHigherPriorityTaskWoken   // [回传] 是否需要切换任务？
 );//接收
+uxQueueMessagesWaitingFromISR(QueueHandle)//返回队列里现在有几个数据（或者信号量现在的计数值）
+xQueueIsQueueFullFromISR(QueueHandle)
+xQueueIsQueueEmptyFromISR(QueueHandle)
 //////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////事件标志组//////////////////////////////////////////////
@@ -110,3 +111,5 @@ BaseType_t xTimerStopFromISR(
 xTimerResetFromISR() //在中断中复位软件定时器定时 
 xTimerChangePeriodFromISR() //在中断中更改软件定时器的定时超时时间
 //////////////////////////////////////////////////////////////////////////////////////
+BaseType_t *pxHigherPriorityTaskWoken = pdFALSE;//如果该函数唤醒了一个优先级比当前运行任务更高的任务，API会把这个变量置为 pdTRUE
+portYIELD_FROM_ISR(xHigherPriorityTaskWoken)//放在回调函数的最后一行，用于中断结束时切换到高优先级任务
