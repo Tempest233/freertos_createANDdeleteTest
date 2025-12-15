@@ -27,28 +27,28 @@ BaseType_t xQueuePeek()//只看不取
 BaseType_t xQueueSendToFront()//插队，直接放在队头
 BaseType_t xQueueOverwrite() //覆写，只有队列长度为1时可用
 BaseType_t xQueueReset((QueueHandle_t)Sem)//清空队列/信号量
-void Queue_write_Entry(void *pvParameters)
-{
-  int send_data=100;
-  for (;;)
-  {
-    printf("send data: %d  \n",send_data);
-    if(xQueueSend(Queue_count,&send_data,0) == pdPASS)
-   // printf("send data: %d  \n",send_data);
-		send_data++;
-    vTaskDelay(pdMS_TO_TICKS(1000));
-  }
-}
-void Queue_read_Entry(void *pvParameters)
-{
-  int recv_buffer=0;
-  for(;;)
-  {
-    if(xQueueReceive(Queue_count,&recv_buffer,portMAX_DELAY) == pdTRUE )
-    {
-      printf("receive data: %d\r\n",recv_buffer);
-      HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
-    }
-  }
 
-}
+
+BaseType_t xQueueSendFromISR( 
+    QueueHandle_t xQueue,                   // 队列句柄
+    const void *pvItemToQueue,              // 要发送的数据的【地址/指针】
+    BaseType_t *pxHigherPriorityTaskWoken   // [回传] 是否需要切换任务？
+);//发送到队尾
+BaseType_t xQueueSendToFrontFromISR( 
+    QueueHandle_t xQueue,                   // 队列句柄
+    const void *pvItemToQueue,              // 要发送的数据的【地址/指针】
+    BaseType_t *pxHigherPriorityTaskWoken   // [回传] 是否需要切换任务？
+);//发送到队头
+xQueueOverwriteFromISR(
+    QueueHandle_t xQueue, 
+    const void *pvItemToQueue, 
+    BaseType_t *pxHigherPriorityTaskWoken
+);//覆写
+BaseType_t xQueueReceiveFromISR( 
+    QueueHandle_t xQueue,                   // 队列句柄
+    void *pvBuffer,                         // 接收数据的缓冲区【地址】
+    BaseType_t *pxHigherPriorityTaskWoken   // [回传] 是否需要切换任务？
+);//接收
+uxQueueMessagesWaitingFromISR(QueueHandle)//返回队列里现在有几个数据（或者信号量现在的计数值）
+xQueueIsQueueFullFromISR(QueueHandle)
+xQueueIsQueueEmptyFromISR(QueueHandle)
