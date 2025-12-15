@@ -53,14 +53,21 @@ BaseType_t xTaskNotifyAndQuery(+uint32_t *pulPreviousNotificationValue)
 
 
 //中断中：
-void vTaskNotifyGiveFromISR( TaskHandle_t xTaskToNotify, 
-                             BaseType_t *pxHigherPriorityTaskWoken );
+void vTaskNotifyGiveFromISR( 
+    TaskHandle_t xTaskToNotify,             // 目标任务句柄
+    BaseType_t *pxHigherPriorityTaskWoken   // [回传] 是否需要切换任务？
+);//发送简单通知
+BaseType_t xTaskNotifyFromISR( 
+    TaskHandle_t xTaskToNotify,             // 目标任务句柄
+    uint32_t ulValue,                       // 要传的数据或掩码
+    eNotifyAction eAction,                  // 动作 (eSetBits, eIncrement 等)
+    BaseType_t *pxHigherPriorityTaskWoken   // [回传] 是否需要切换任务？
+);//发送全能通知
+xTaskNotifyAndQueryFromISR() //发送通知并获取发送任务通知前任务通知的通知值
 //一般写法：
 BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 vTaskNotifyGiveFromISR(TaskHandle, &xHigherPriorityTaskWoken);
 portYIELD_FROM_ISR(xHigherPriorityTaskWoken); // 强制切换，保证实时性
-
-
 
 
 
