@@ -70,10 +70,17 @@ EventBits_t        xEventGroupSync( //同步等待，不同任务运行到这的
                                         const EventBits_t uxBitsToSet,   // 2. 我是谁？(我要置位哪一位)
                                         const EventBits_t uxBitsToWaitFor, // 3. 我在等谁？(所有人的掩码)
                                         TickType_t xTicksToWait);           // 4. 死等还是超时？     
-BaseType_t         xEventGroupSetBitsFromISR(
-                                        EventGroupHandle_t xEventGroup,     // 1. 哪个组？
-                                        const EventBits_t uxBitsToSet,      // 2. 置哪一位？
-                                        BaseType_t *pxHigherPriorityTaskWoken // 3. 有没有VIP醒了？)
 
 
+BaseType_t xEventGroupSetBitsFromISR( 
+    EventGroupHandle_t xEventGroup,         // 事件组句柄
+    const EventBits_t uxBitsToSet,          // 要置为 1 的位 (如 1<<0)
+    BaseType_t *pxHigherPriorityTaskWoken   // [回传] 是否需要切换任务？
+);//设置位
+BaseType_t xEventGroupClearBitsFromISR( 
+    EventGroupHandle_t xEventGroup,         // 事件组句柄
+    const EventBits_t uxBitsToClear         // 要清零的位
+); //清空位
+EventBits_t xEventGroupGetBitsFromISR( EventGroupHandle_t xEventGroup )//读取位
+// 注意：ClearBitsFromISR 通常不需要切换任务参数，因为它不唤醒任务。
          
