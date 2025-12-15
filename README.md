@@ -22,3 +22,4 @@ BaseType_t xSemaphoreGiveFromISR(
                      SemaphoreHandle_t xSemaphore,
                      BaseType_t *pxHigherPriorityTaskWoken
                );
+BaseType_t xSemaphoreTakeFromISR( xSemaphore, pxHigherPriorityTaskWoken )
