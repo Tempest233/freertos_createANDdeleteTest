@@ -26,6 +26,7 @@ BaseType_t xQueueReceive( QueueHandle_t xQueue, void * pvBuffer, TickType_t xTic
 BaseType_t xQueuePeek()//只看不取
 BaseType_t xQueueSendToFront()//插队，直接放在队头
 BaseType_t xQueueOverwrite() //覆写，只有队列长度为1时可用
+BaseType_t xQueueReset((QueueHandle_t)Sem)//清空队列/信号量
 void Queue_write_Entry(void *pvParameters)
 {
   int send_data=100;
