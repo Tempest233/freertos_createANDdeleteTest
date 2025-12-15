@@ -57,7 +57,11 @@ void MX_FREERTOS_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+void User_Key_NVIC_Config(void)
+{
+  HAL_NVIC_SetPriority(EXTI4_IRQn, 5, 0);
+    HAL_NVIC_EnableIRQ(EXTI4_IRQn);
+}
 /* USER CODE END 0 */
 
 /**
@@ -91,7 +95,7 @@ int main(void)
   MX_GPIO_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-
+  User_Key_NVIC_Config();
   /* USER CODE END 2 */
 
   /* Call init function for freertos objects (in cmsis_os2.c) */

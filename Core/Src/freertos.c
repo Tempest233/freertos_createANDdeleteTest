@@ -190,13 +190,32 @@ void StartDefaultTask(void const *argument)
 /* USER CODE BEGIN Application */
 void LED0_Entry(void *pvParameters)
 {
-  for (;;)
-  {
-    xSemaphoreTake(myBinarySem_Handle,portMAX_DELAY);
-    HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
-    printf("led toggle!\r\n");
-    vTaskDelay(pdMS_TO_TICKS(500));
-  }
+  for(;;)
+    {   
+        // 1. 死等信号量（被中断唤醒）
+        if(xSemaphoreTake(myBinarySem_Handle, portMAX_DELAY) == pdTRUE)
+        {
+            // 2. 醒来后，先延时 20ms (避开抖动期)
+            vTaskDelay(pdMS_TO_TICKS(20));
+
+            // 3. 再次确认引脚电平 (确认真的按下了，而不是误触)
+            // 注意：KEY1 (PE3) 是低电平有效
+            if(HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_4) == GPIO_PIN_RESET)
+            {
+                // 真的按下了，执行业务
+                printf("LED Toggled!\r\n");
+                HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
+                
+                // 4. 【重要】加一个长延时，防止连击
+                // 比如 200ms 内不准再按
+                vTaskDelay(pdMS_TO_TICKS(200));
+                
+                // 5. 【进阶技巧】清空信号量
+                // 如果在延时期间中断又给了一次信号量，这里可以把它清掉，防止循环回去又执行一次
+                xQueueReset((QueueHandle_t)myBinarySem_Handle);
+            }
+        }
+    }
 }
 void LED1_Entry(void *pvParameters)
 {
@@ -210,6 +229,7 @@ void LED1_Entry(void *pvParameters)
 
 void KEY0_Entry(void *pvParameters)
 {
+  vTaskSuspend(NULL);
   for (;;)
   {
     //        HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
@@ -275,6 +295,17 @@ void USART_Entry(void *pvParameters)
       printf("delete task1 successfully\r\n");
       flag[1] = 1;
     }
+  }
+}
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+  printf("enter isr!\r\n");
+  if(GPIO_Pin == GPIO_PIN_4)
+  {
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    xSemaphoreGiveFromISR(myBinarySem_Handle,&xHigherPriorityTaskWoken);
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
   }
 }
 /* USER CODE END Application */

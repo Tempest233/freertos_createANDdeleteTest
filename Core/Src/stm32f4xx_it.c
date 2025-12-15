@@ -174,5 +174,10 @@ void TIM1_UP_TIM10_IRQHandler(void)
 }
 
 /* USER CODE BEGIN 1 */
-
+void EXTI4_IRQHandler(void)
+{
+    // 调用 HAL 库的公共处理函数
+    // 它会自动清除标志位，并调用 HAL_GPIO_EXTI_Callback
+    HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_4);
+}
 /* USER CODE END 1 */
