@@ -16,36 +16,41 @@ FE (Framing 帧错误)： 没收到停止位（波特率对不上）。
 NE (Noise 噪声错误)： 信号上有毛刺干扰。  
 ## 1. 任务流程
 
-1. 配置GPIO为中断触发模式  
-2. 配置中断优先级，使能  
-3. 编写函数：中断服务入口 and 回调函数  
-4. 创建任务 (xTaskCreate)  
+1. 配置DMA参数(时钟，各属性，连接DMA与外设(USART)，优先级，开启中断)，串口同理  
+2. main中调用初始化函数（DMA最好在串口之前）  
+3. 编写函数：中断服务入口（stm32f4xx_it.c中） and 回调函数 and 消费者(处理数据的任务)
+4. 启动：HAL_UARTEx_ReceiveToIdle_DMA  
 5. 启动调度器  
 
 ## 2. 关键代码
 
 ```c
-HAL_NVIC_SetPriority(EXTI4_IRQn, 5, 0);
-HAL_NVIC_EnableIRQ(EXTI4_IRQn);
-void EXTI4_IRQHandler(void)
-{
-    HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_4);
-}
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){}；
+User_DMA_Config();//详见usart.c,dma.c
+MX_USART1_UART_Init();
 
-/////////////////////////////////串口+DMA中断/////////////////////////////////////////////////
-HAL_UART_Receive_DMA(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size);//定长接收，满了才回调
-HAL_UART_RxCpltCallback();//全满回调
+DMA2_Stream2_IRQHandler();
+HAL_UARTEx_RxEventCallback();
+HAL_UARTEx_RxEventCallback();
 
-HAL_UART_RxHalfCpltCallback();//循环模式，半满中断一次，全满中断一次
+HAL_UARTEx_ReceiveToIdle_DMA(&huart1, RxBuffer, 256);
+
+/////////////////////////////////串口+DMA中断的开启与回调函数/////////////////////////////////////////////////
+//normal模式用完要再开启，circle模式不用。
+//但normal模式存在数据丢失风险（重启的短时间内再来数据就收不到）
+//但idle模式下，中断触发是随机的，而circle只有满了指针才会跳到下标为0的地方，所以需额外处理。
+HAL_UART_Receive_DMA(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size);//定长接收，满了才回调。（启动的参数都一样）
+//串口句柄，放数据的地方，缓冲区大小
+HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart);//全满回调
+
+HAL_UART_RxHalfCpltCallback();//半满中断一次，全满中断一次
 HAL_UART_RxHalfCpltCallback();//半满回调
 HAL_UART_RxCpltCallback();//全满回调
 
-HAL_UARTEx_ReceiveToIdle_DMA();//带idle检测的接收
-HAL_UARTEx_RxEventCallback();//idle检测的回调
+HAL_UARTEx_ReceiveToIdle_DMA();//带idle检测的接收，停了也回调
+HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart,uint16_t Size);//idle检测的回调
 
-
-HAL_UART_Transmit_DMA(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size);//发送
+///////////////////////中断发送
+HAL_UART_Transmit_DMA();//发送
 HAL_UART_TxCpltCallback();//发送回调
 ////////////////////////////////////////////////////////////////////////////////////////////
 

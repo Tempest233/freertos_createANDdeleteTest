@@ -139,12 +139,13 @@ void MX_FREERTOS_Init(void)
               (TaskHandle_t *)&USART_Handle);
 
   myBinarySem_Handle = xSemaphoreCreateBinary();
-  myQueue= xQueueCreate(128,sizeof(uint8_t));
+  myQueue= xQueueCreate(256,sizeof(uint8_t));
   if (myBinarySem_Handle == NULL)
   {
     printf("Create Error!\r\n");
   }
   HAL_UARTEx_ReceiveToIdle_DMA(&huart1, RxBuffer, 256);
+  __HAL_DMA_DISABLE_IT(huart1.hdmarx, DMA_IT_HT);
   /* USER CODE END Init */
 
   /* USER CODE BEGIN RTOS_MUTEX */
@@ -287,7 +288,7 @@ void KEY1_Entry(void *pvParameters)
 void USART_Entry(void *pvParameters)
 {
    uint16_t recv_len = 0;
-   HAL_UARTEx_ReceiveToIdle_DMA(&huart1, RxBuffer, RX_BUF_SIZE);
+   
     for(;;)
     {
 			  if(xQueueReceive(myQueue, &recv_len, portMAX_DELAY) == pdTRUE)
@@ -299,14 +300,14 @@ void USART_Entry(void *pvParameters)
         
         // 5. 【关键】处理完了，重新开启 DMA，准备接下一包
         // 这相当于“把仓库腾空了，搬运工可以继续干活了”
-        HAL_UARTEx_ReceiveToIdle_DMA(&huart1, RxBuffer, RX_BUF_SIZE);
+        
           }   
         }
 }
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-  printf("enter isr!\r\n");
+  
   if(GPIO_Pin == GPIO_PIN_4)
   {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
@@ -333,7 +334,8 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
         // 为什么？因为我们用的是单缓冲。
         // 如果立刻重启，新数据可能会覆盖还没处理旧数据的 RxBuffer。
         // 我们留给任务处理完再重启。
-
+      HAL_UARTEx_ReceiveToIdle_DMA(&huart1, RxBuffer, RX_BUF_SIZE);
+      __HAL_DMA_DISABLE_IT(huart1.hdmarx, DMA_IT_HT);
         portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
     }
 }
