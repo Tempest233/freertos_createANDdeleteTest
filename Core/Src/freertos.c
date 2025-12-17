@@ -38,7 +38,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define RX_BUF_SIZE 256
+#define RX_BUF_SIZE 512
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -59,6 +59,7 @@ TaskHandle_t KEY1_Handle;
 TaskHandle_t USART_Handle;
 SemaphoreHandle_t myBinarySem_Handle;
 SemaphoreHandle_t myQueue;
+SemaphoreHandle_t myMutex;
 
 void LED0_Entry(void *pvParameters); // 函数声明
 void LED1_Entry(void *pvParameters);
@@ -139,12 +140,13 @@ void MX_FREERTOS_Init(void)
               (TaskHandle_t *)&USART_Handle);
 
   myBinarySem_Handle = xSemaphoreCreateBinary();
-  myQueue= xQueueCreate(256,sizeof(uint8_t));
+  myQueue= xQueueCreate(1,sizeof(uint16_t));
+  myMutex = xSemaphoreCreateMutex();
   if (myBinarySem_Handle == NULL)
   {
     printf("Create Error!\r\n");
   }
-  HAL_UARTEx_ReceiveToIdle_DMA(&huart1, RxBuffer, 256);
+  HAL_UARTEx_ReceiveToIdle_DMA(&huart1, RxBuffer, RX_BUF_SIZE);
   __HAL_DMA_DISABLE_IT(huart1.hdmarx, DMA_IT_HT);
   /* USER CODE END Init */
 
@@ -247,6 +249,7 @@ void KEY0_Entry(void *pvParameters)
       {
         // 按下 KEY0：点亮 LED0 (置低电平)，发送串口消息
         // 串口发送
+        
         printf("KEY0 Pressed! \r\n");
         xSemaphoreGive(myBinarySem_Handle);
 
@@ -293,13 +296,16 @@ void USART_Entry(void *pvParameters)
     {
 			  if(xQueueReceive(myQueue, &recv_len, portMAX_DELAY) == pdTRUE)
         {
-          if(recv_len < RX_BUF_SIZE) RxBuffer[recv_len] = '\0';
+          xSemaphoreTake(myMutex,portMAX_DELAY);
+          printf("ernter entry\r\n");
+          xSemaphoreGive(myMutex);
 
-        // 4. 直接打印完整字符串
-        printf("DMA Recv (%d bytes): %s\r\n", recv_len, RxBuffer);
+          if(recv_len < RX_BUF_SIZE) RxBuffer[recv_len] = '\0';
+          xSemaphoreTake(myMutex,portMAX_DELAY);
         
-        // 5. 【关键】处理完了，重新开启 DMA，准备接下一包
-        // 这相当于“把仓库腾空了，搬运工可以继续干活了”
+        printf("DMA Recv (%d bytes): %s\r\n", recv_len, RxBuffer);
+          xSemaphoreGive(myMutex);
+       
         
           }   
         }
@@ -317,7 +323,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 }
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
-  printf("ernter isr\r\n");
+  
     if (huart->Instance == USART1)
     {
         BaseType_t xHigherPriorityTaskWoken = pdFALSE;

@@ -32,8 +32,8 @@ DMA2_Stream2_IRQHandler();
 HAL_UARTEx_RxEventCallback();
 HAL_UARTEx_RxEventCallback();
 
-HAL_UARTEx_ReceiveToIdle_DMA(&huart1, RxBuffer, 256);
-
+HAL_UARTEx_ReceiveToIdle_DMA(&huart1, RxBuffer, 256);//注意缓冲区大小，太小会被截断
+__HAL_DMA_DISABLE_IT(huart1.hdmarx, DMA_IT_HT);//传输大数据时记得使用，否则会在一半处截断一次
 /////////////////////////////////串口+DMA中断的开启与回调函数/////////////////////////////////////////////////
 //normal模式用完要再开启，circle模式不用。
 //但normal模式存在数据丢失风险（重启的短时间内再来数据就收不到）
