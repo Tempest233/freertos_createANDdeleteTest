@@ -20,6 +20,8 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32f4xx_it.h"
+#include "dma.h"
+#include "usart.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 /* USER CODE END Includes */
@@ -179,5 +181,17 @@ void EXTI4_IRQHandler(void)
     // 调用 HAL 库的公共处理函数
     // 它会自动清除标志位，并调用 HAL_GPIO_EXTI_Callback
     HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_4);
+}
+
+/* 1. 串口中断入口 */
+void USART1_IRQHandler(void)
+{
+    HAL_UART_IRQHandler(&huart1); // 让 HAL 库去处理空闲中断
+}
+
+/* 2. DMA 中断入口 (注意名字别写错) */
+void DMA2_Stream2_IRQHandler(void)
+{
+    HAL_DMA_IRQHandler(&hdma_usart1_rx); // 让 HAL 库去处理传输完成
 }
 /* USER CODE END 1 */

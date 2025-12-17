@@ -1,7 +1,19 @@
-# FreeRTOS 中断(串口版) 
+# FreeRTOS 中断(串口版+DMA) 
 
-功能：中断触发按键，翻转LED。  
-注意互斥锁创建出来时是满的，二值信号量是空的.
+功能：接受数据后回传数据。  
+
+
+中断的分类：  
+1.发送接收类  
+RXNE（接收数据寄存器非空）  
+IDLE（空闲线路检测，非空且对方发完了）  
+TXE（发送寄存器空，可以写下一字节了）  
+TC (发送完成)  
+2.错误类  
+ORE (Overrun 溢出)： CPU 读慢了，旧数据没拿走，新数据又来了。这是丢包的主要原因。  
+PE (Parity 校验错误)： 奇偶校验不对（通信受干扰）。  
+FE (Framing 帧错误)： 没收到停止位（波特率对不上）。  
+NE (Noise 噪声错误)： 信号上有毛刺干扰。  
 ## 1. 任务流程
 
 1. 配置GPIO为中断触发模式  
@@ -20,6 +32,22 @@ void EXTI4_IRQHandler(void)
     HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_4);
 }
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){}；
+
+/////////////////////////////////串口+DMA中断/////////////////////////////////////////////////
+HAL_UART_Receive_DMA(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size);//定长接收，满了才回调
+HAL_UART_RxCpltCallback();//全满回调
+
+HAL_UART_RxHalfCpltCallback();//循环模式，半满中断一次，全满中断一次
+HAL_UART_RxHalfCpltCallback();//半满回调
+HAL_UART_RxCpltCallback();//全满回调
+
+HAL_UARTEx_ReceiveToIdle_DMA();//带idle检测的接收
+HAL_UARTEx_RxEventCallback();//idle检测的回调
+
+
+HAL_UART_Transmit_DMA(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size);//发送
+HAL_UART_TxCpltCallback();//发送回调
+////////////////////////////////////////////////////////////////////////////////////////////
 
 
 

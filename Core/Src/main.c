@@ -21,7 +21,7 @@
 #include "cmsis_os.h"
 #include "usart.h"
 #include "gpio.h"
-
+#include "dma.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
@@ -94,6 +94,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART1_UART_Init();
+  User_DMA_Config();
   /* USER CODE BEGIN 2 */
   User_Key_NVIC_Config();
   /* USER CODE END 2 */

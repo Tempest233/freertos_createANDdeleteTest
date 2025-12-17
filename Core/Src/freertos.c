@@ -28,6 +28,7 @@
 #include "string.h"
 #include "stdio.h"
 #include "semphr.h"
+#include "usart.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -37,7 +38,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define RX_BUF_SIZE 256
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -48,12 +49,16 @@
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
 volatile int flag[2] = {1, 1};
+uint8_t rx_byte;
+uint8_t RxBuffer[RX_BUF_SIZE];
+
 TaskHandle_t LED0_Handle; // 原生句柄
 TaskHandle_t LED1_Handle;
 TaskHandle_t KEY0_Handle;
 TaskHandle_t KEY1_Handle;
 TaskHandle_t USART_Handle;
 SemaphoreHandle_t myBinarySem_Handle;
+SemaphoreHandle_t myQueue;
 
 void LED0_Entry(void *pvParameters); // 函数声明
 void LED1_Entry(void *pvParameters);
@@ -134,11 +139,12 @@ void MX_FREERTOS_Init(void)
               (TaskHandle_t *)&USART_Handle);
 
   myBinarySem_Handle = xSemaphoreCreateBinary();
+  myQueue= xQueueCreate(128,sizeof(uint8_t));
   if (myBinarySem_Handle == NULL)
   {
     printf("Create Error!\r\n");
   }
-
+  HAL_UARTEx_ReceiveToIdle_DMA(&huart1, RxBuffer, 256);
   /* USER CODE END Init */
 
   /* USER CODE BEGIN RTOS_MUTEX */
@@ -280,22 +286,22 @@ void KEY1_Entry(void *pvParameters)
 
 void USART_Entry(void *pvParameters)
 {
-   vTaskSuspend(NULL);
-  for (;;)
-  {
-    if (flag[0] == 0)
+   uint16_t recv_len = 0;
+   HAL_UARTEx_ReceiveToIdle_DMA(&huart1, RxBuffer, RX_BUF_SIZE);
+    for(;;)
     {
-      vTaskDelete(LED0_Handle);
-      printf("delete task0 successfully\r\n");
-      flag[0] = 1;
-    }
-    else if (flag[1] == 0)
-    {
-      vTaskDelete(LED1_Handle);
-      printf("delete task1 successfully\r\n");
-      flag[1] = 1;
-    }
-  }
+			  if(xQueueReceive(myQueue, &recv_len, portMAX_DELAY) == pdTRUE)
+        {
+          if(recv_len < RX_BUF_SIZE) RxBuffer[recv_len] = '\0';
+
+        // 4. 直接打印完整字符串
+        printf("DMA Recv (%d bytes): %s\r\n", recv_len, RxBuffer);
+        
+        // 5. 【关键】处理完了，重新开启 DMA，准备接下一包
+        // 这相当于“把仓库腾空了，搬运工可以继续干活了”
+        HAL_UARTEx_ReceiveToIdle_DMA(&huart1, RxBuffer, RX_BUF_SIZE);
+          }   
+        }
 }
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
@@ -307,5 +313,28 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     xSemaphoreGiveFromISR(myBinarySem_Handle,&xHigherPriorityTaskWoken);
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
   }
+}
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
+{
+  printf("ernter isr\r\n");
+    if (huart->Instance == USART1)
+    {
+        BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
+        // Size 是实际收到的字节数。
+        // 此时，数据已经静静地躺在 RxBuffer 里了，是 DMA 搬进去的。
+        
+        // 我们把“收到的长度”发送给任务，通知任务去处理
+        // (这里为了演示简单，我们直接把长度发给队列。
+        //  前提：你的队列 ItemSize 最好改成 uint16_t，或者你强转一下)
+        xQueueSendFromISR(myQueue,&Size, &xHigherPriorityTaskWoken);
+
+        // 注意：这里先【不要】重启 DMA！
+        // 为什么？因为我们用的是单缓冲。
+        // 如果立刻重启，新数据可能会覆盖还没处理旧数据的 RxBuffer。
+        // 我们留给任务处理完再重启。
+
+        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+    }
 }
 /* USER CODE END Application */

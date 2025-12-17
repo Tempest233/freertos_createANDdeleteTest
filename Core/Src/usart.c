@@ -60,7 +60,8 @@ void MX_USART1_UART_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN USART1_Init 2 */
-
+    HAL_NVIC_SetPriority(USART1_IRQn, 5, 0); // 优先级设为 5 (FreeRTOS安全区)
+    HAL_NVIC_EnableIRQ(USART1_IRQn);
   /* USER CODE END USART1_Init 2 */
 
 }
