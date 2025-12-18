@@ -56,6 +56,7 @@ volatile int flag[2] = {1, 1};
 uint8_t send_data[256];
 uint8_t rx_byte;
 uint8_t RxBuffer[RX_BUF_SIZE];
+UartPacket_t msg;
 
 TaskHandle_t LED0_Handle; // 原生句柄
 TaskHandle_t LED1_Handle;
@@ -313,6 +314,7 @@ void KEY1_Entry(void *pvParameters)
 
 void USART_Receive_Entry(void *pvParameters)
 {
+  vTaskDelay(NULL);
   UartPacket_t recv_pkg;
   for (;;)
   {
@@ -331,26 +333,30 @@ void USART_Receive_Entry(void *pvParameters)
     }
   }
 }
-void DMA_Send_Entry(uint8_t *data,uint16_t len)
-{
+//void DMA_Send_Entry(uint8_t *data,uint16_t len)
+//{
 
-    if(xSemaphoreTake(Transmit_flag,portMAX_DELAY) == pdTRUE)
-    {
-      HAL_UART_Transmit_DMA(&huart1, data, len);
-    }
-}
+//    if(xSemaphoreTake(Transmit_flag,portMAX_DELAY) == pdTRUE)
+//    {
+//      HAL_UART_Transmit_DMA(&huart1, data, len);
+//    }
+//}
 
 void USART_Send_Entry(void *pvParameters)
 {
-  char *str = "hello,world!\r\n";
-  uint16_t len = strlen(str); 
-  memcpy(send_data,str,len);
+  UartPacket_t recv_pkg;
   for(;;)
   {
+    if(xQueueReceive(myQueue, &recv_pkg, portMAX_DELAY) == pdTRUE)
+    {
+     if(xSemaphoreTake(Transmit_flag,portMAX_DELAY) == pdTRUE)
+     {
+      uint16_t len=recv_pkg.len;
+      memcpy(send_data,recv_pkg.payload,recv_pkg.len);
+     HAL_UART_Transmit_DMA(&huart1,send_data,len);
+     }
+    }
     
-    DMA_Send_Entry(send_data,len);
-
-    vTaskDelay(pdMS_TO_TICKS(1000));
   }
 }
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
@@ -369,11 +375,12 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
   if (huart->Instance == USART1)
   {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    UartPacket_t msg;
+    
     msg.len = Size;
     memcpy(msg.payload, RxBuffer, Size);
     xQueueSendFromISR(myQueue, &msg, &xHigherPriorityTaskWoken);
 
+    
     HAL_UARTEx_ReceiveToIdle_DMA(&huart1, RxBuffer, RX_BUF_SIZE);
     __HAL_DMA_DISABLE_IT(huart1.hdmarx, DMA_IT_HT);
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
