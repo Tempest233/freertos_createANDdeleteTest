@@ -33,7 +33,11 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+typedef struct
+{
+  uint16_t len;         // 长度
+  uint8_t payload[512]; // 数据本体
+} UartPacket_t;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -60,7 +64,7 @@ TaskHandle_t USART_Handle;
 SemaphoreHandle_t myBinarySem_Handle;
 SemaphoreHandle_t myQueue;
 SemaphoreHandle_t myMutex;
-
+SemaphoreHandle_t mybufferQueue;
 void LED0_Entry(void *pvParameters); // 函数声明
 void LED1_Entry(void *pvParameters);
 void KEY0_Entry(void *pvParameters);
@@ -140,7 +144,8 @@ void MX_FREERTOS_Init(void)
               (TaskHandle_t *)&USART_Handle);
 
   myBinarySem_Handle = xSemaphoreCreateBinary();
-  myQueue= xQueueCreate(1,sizeof(uint16_t));
+  myQueue = xQueueCreate(1, sizeof(UartPacket_t));
+  mybufferQueue = xQueueCreate(128, sizeof(uint16_t));
   myMutex = xSemaphoreCreateMutex();
   if (myBinarySem_Handle == NULL)
   {
@@ -199,36 +204,36 @@ void StartDefaultTask(void const *argument)
 /* USER CODE BEGIN Application */
 void LED0_Entry(void *pvParameters)
 {
-  for(;;)
-    {   
-        // 1. 死等信号量（被中断唤醒）
-        if(xSemaphoreTake(myBinarySem_Handle, portMAX_DELAY) == pdTRUE)
-        {
-            // 2. 醒来后，先延时 20ms (避开抖动期)
-            vTaskDelay(pdMS_TO_TICKS(20));
+  for (;;)
+  {
+    // 1. 死等信号量（被中断唤醒）
+    if (xSemaphoreTake(myBinarySem_Handle, portMAX_DELAY) == pdTRUE)
+    {
+      // 2. 醒来后，先延时 20ms (避开抖动期)
+      vTaskDelay(pdMS_TO_TICKS(20));
 
-            // 3. 再次确认引脚电平 (确认真的按下了，而不是误触)
-            // 注意：KEY1 (PE3) 是低电平有效
-            if(HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_4) == GPIO_PIN_RESET)
-            {
-                // 真的按下了，执行业务
-                printf("LED Toggled!\r\n");
-                HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
-                
-                // 4. 【重要】加一个长延时，防止连击
-                // 比如 200ms 内不准再按
-                vTaskDelay(pdMS_TO_TICKS(200));
-                
-                // 5. 【进阶技巧】清空信号量
-                // 如果在延时期间中断又给了一次信号量，这里可以把它清掉，防止循环回去又执行一次
-                xQueueReset((QueueHandle_t)myBinarySem_Handle);
-            }
-        }
+      // 3. 再次确认引脚电平 (确认真的按下了，而不是误触)
+      // 注意：KEY1 (PE3) 是低电平有效
+      if (HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_4) == GPIO_PIN_RESET)
+      {
+        // 真的按下了，执行业务
+        printf("LED Toggled!\r\n");
+        HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
+
+        // 4. 【重要】加一个长延时，防止连击
+        // 比如 200ms 内不准再按
+        vTaskDelay(pdMS_TO_TICKS(200));
+
+        // 5. 【进阶技巧】清空信号量
+        // 如果在延时期间中断又给了一次信号量，这里可以把它清掉，防止循环回去又执行一次
+        xQueueReset((QueueHandle_t)myBinarySem_Handle);
+      }
     }
+  }
 }
 void LED1_Entry(void *pvParameters)
 {
-   vTaskSuspend(NULL);
+  vTaskSuspend(NULL);
   for (;;)
   {
     HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
@@ -249,7 +254,7 @@ void KEY0_Entry(void *pvParameters)
       {
         // 按下 KEY0：点亮 LED0 (置低电平)，发送串口消息
         // 串口发送
-        
+
         printf("KEY0 Pressed! \r\n");
         xSemaphoreGive(myBinarySem_Handle);
 
@@ -265,7 +270,7 @@ void KEY0_Entry(void *pvParameters)
 }
 void KEY1_Entry(void *pvParameters)
 {
-   vTaskSuspend(NULL);
+  vTaskSuspend(NULL);
   for (;;)
   {
     if (HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_3) == GPIO_PIN_RESET)
@@ -290,59 +295,49 @@ void KEY1_Entry(void *pvParameters)
 
 void USART_Entry(void *pvParameters)
 {
-   uint16_t recv_len = 0;
-   
-    for(;;)
+  UartPacket_t recv_pkg;
+  for (;;)
+  {
+    if (xQueueReceive(myQueue, &recv_pkg, portMAX_DELAY) == pdTRUE)
     {
-			  if(xQueueReceive(myQueue, &recv_len, portMAX_DELAY) == pdTRUE)
-        {
-          xSemaphoreTake(myMutex,portMAX_DELAY);
-          printf("ernter entry\r\n");
-          xSemaphoreGive(myMutex);
+      xSemaphoreTake(myMutex, portMAX_DELAY);
+      printf("ernter entry\r\n");
+      xSemaphoreGive(myMutex);
 
-          if(recv_len < RX_BUF_SIZE) RxBuffer[recv_len] = '\0';
-          xSemaphoreTake(myMutex,portMAX_DELAY);
-        
-        printf("DMA Recv (%d bytes): %s\r\n", recv_len, RxBuffer);
-          xSemaphoreGive(myMutex);
-       
-        
-          }   
-        }
+      if (recv_pkg.len < RX_BUF_SIZE)
+        recv_pkg.payload[recv_pkg.len] = '\0';//必须加，否则printf会停不下来
+
+      xSemaphoreTake(myMutex, portMAX_DELAY);
+      printf("DMA Recv (%d bytes): %s\r\n", recv_pkg.len, recv_pkg.payload);
+      xSemaphoreGive(myMutex);
+    }
+  }
 }
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-  
-  if(GPIO_Pin == GPIO_PIN_4)
+
+  if (GPIO_Pin == GPIO_PIN_4)
   {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    xSemaphoreGiveFromISR(myBinarySem_Handle,&xHigherPriorityTaskWoken);
+    xSemaphoreGiveFromISR(myBinarySem_Handle, &xHigherPriorityTaskWoken);
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
   }
 }
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
-  
-    if (huart->Instance == USART1)
-    {
-        BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
-        // Size 是实际收到的字节数。
-        // 此时，数据已经静静地躺在 RxBuffer 里了，是 DMA 搬进去的。
-        
-        // 我们把“收到的长度”发送给任务，通知任务去处理
-        // (这里为了演示简单，我们直接把长度发给队列。
-        //  前提：你的队列 ItemSize 最好改成 uint16_t，或者你强转一下)
-        xQueueSendFromISR(myQueue,&Size, &xHigherPriorityTaskWoken);
+  if (huart->Instance == USART1)
+  {
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    UartPacket_t msg;
+    msg.len = Size;
+    memcpy(msg.payload, RxBuffer, Size);
+    xQueueSendFromISR(myQueue, &msg, &xHigherPriorityTaskWoken);
 
-        // 注意：这里先【不要】重启 DMA！
-        // 为什么？因为我们用的是单缓冲。
-        // 如果立刻重启，新数据可能会覆盖还没处理旧数据的 RxBuffer。
-        // 我们留给任务处理完再重启。
-      HAL_UARTEx_ReceiveToIdle_DMA(&huart1, RxBuffer, RX_BUF_SIZE);
-      __HAL_DMA_DISABLE_IT(huart1.hdmarx, DMA_IT_HT);
-        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-    }
+    HAL_UARTEx_ReceiveToIdle_DMA(&huart1, RxBuffer, RX_BUF_SIZE);
+    __HAL_DMA_DISABLE_IT(huart1.hdmarx, DMA_IT_HT);
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+  }
 }
 /* USER CODE END Application */

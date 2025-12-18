@@ -1,6 +1,6 @@
-# FreeRTOS 中断(串口版+DMA) 
+# FreeRTOS 中断(串口版+DMA+队列) 
 
-功能：接受数据后回传数据。  
+功能：接受数据后回传数据，使用队列确保数据安全性，队列里传的是结构体。  
 
 
 中断的分类：  
@@ -47,13 +47,13 @@ HAL_UART_RxHalfCpltCallback();//半满回调
 HAL_UART_RxCpltCallback();//全满回调
 
 HAL_UARTEx_ReceiveToIdle_DMA();//带idle检测的接收，停了也回调
-HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart,uint16_t Size);//idle检测的回调
+HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart,uint16_t Size);//idle检测的回调，参数传入的是实际搬运的数量
 
 ///////////////////////中断发送
 HAL_UART_Transmit_DMA();//发送
 HAL_UART_TxCpltCallback();//发送回调
-////////////////////////////////////////////////////////////////////////////////////////////
-
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 xTaskGetCurrentTaskHandle()//获取被中断打断的那个任务的句柄
@@ -147,3 +147,8 @@ xTimerChangePeriodFromISR() //在中断中更改软件定时器的定时超时�
 //////////////////////////////////////////////////////////////////////////////////////
 BaseType_t *pxHigherPriorityTaskWoken = pdFALSE;//如果该函数唤醒了一个优先级比当前运行任务更高的任务，API会把这个变量置为 pdTRUE
 portYIELD_FROM_ISR(xHigherPriorityTaskWoken)//放在回调函数的最后一行，用于中断结束时切换到高优先级任务
+
+
+
+if (recv_pkg.len < RX_BUF_SIZE)
+        recv_pkg.payload[recv_pkg.len] = '\0';//使用printf的时候记得在最后多加个/0，不然他自己不会停
