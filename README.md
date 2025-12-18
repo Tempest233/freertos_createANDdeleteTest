@@ -1,8 +1,11 @@
-# FreeRTOS 中断(串口版+DMA+队列) 
+# FreeRTOS 中断(串口版+DMA+队列(发送)) 
 
 功能：接受数据后回传数据，使用队列确保数据安全性，队列里传的是结构体。  
 
-
+1.区分清任务和函数。并非一定一对一，一个任务的函数里可以调用别的函数。  
+2.任务不能运行结束，所以必须得用死循环把他困住。  
+3.在 C 语言中，当你用双引号定义一个字符串时，编译器会自动在末尾加上一个 空字符 (Null Character)，也就是 \0 (ASCII 码为 0)，用来标记字符串的结束。所以使用sizeof时记得-1，如uint8_t my_data[] = "Hello...\r\n";   
+4.定义完数组长度后，再赋值使用strcpy或memcpy  
 中断的分类：  
 1.发送接收类  
 RXNE（接收数据寄存器非空）  
@@ -50,7 +53,7 @@ HAL_UARTEx_ReceiveToIdle_DMA();//带idle检测的接收，停了也回调
 HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart,uint16_t Size);//idle检测的回调，参数传入的是实际搬运的数量
 
 ///////////////////////中断发送
-HAL_UART_Transmit_DMA();//发送
+HAL_UART_Transmit_DMA(UART_HandleTypeDef *huart, const uint8_t *pData, uint16_t Size);//发送
 HAL_UART_TxCpltCallback();//发送回调
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -194,4 +194,8 @@ void DMA2_Stream2_IRQHandler(void)
 {
     HAL_DMA_IRQHandler(&hdma_usart1_rx); // 让 HAL 库去处理传输完成
 }
+void DMA2_Stream7_IRQHandler(void)
+{
+    HAL_DMA_IRQHandler(&hdma_usart1_tx);
+}
 /* USER CODE END 1 */

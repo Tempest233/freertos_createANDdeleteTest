@@ -53,6 +53,7 @@ typedef struct
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
 volatile int flag[2] = {1, 1};
+uint8_t send_data[256];
 uint8_t rx_byte;
 uint8_t RxBuffer[RX_BUF_SIZE];
 
@@ -61,15 +62,21 @@ TaskHandle_t LED1_Handle;
 TaskHandle_t KEY0_Handle;
 TaskHandle_t KEY1_Handle;
 TaskHandle_t USART_Handle;
+TaskHandle_t USART_Send_Handle;
+
 SemaphoreHandle_t myBinarySem_Handle;
 SemaphoreHandle_t myQueue;
 SemaphoreHandle_t myMutex;
 SemaphoreHandle_t mybufferQueue;
+SemaphoreHandle_t Transmit_flag;
+
 void LED0_Entry(void *pvParameters); // 函数声明
 void LED1_Entry(void *pvParameters);
 void KEY0_Entry(void *pvParameters);
 void KEY1_Entry(void *pvParameters);
-void USART_Entry(void *pvParameters);
+void USART_Send_Entry(void *pvParameters);
+void USART_Receive_Entry(void *pvParameters);
+void DMA_Send_Entry(uint8_t *data,uint16_t len);
 
 /* USER CODE END Variables */
 osThreadId StartTaskHandle;
@@ -136,17 +143,28 @@ void MX_FREERTOS_Init(void)
               (UBaseType_t)2,
               (TaskHandle_t *)&KEY1_Handle);
 
-  xTaskCreate((TaskFunction_t)USART_Entry,
+  xTaskCreate((TaskFunction_t)USART_Receive_Entry,
               (const char *)"Usart",
               (uint16_t)128,
               (void *)NULL,
               (UBaseType_t)2,
               (TaskHandle_t *)&USART_Handle);
 
+  xTaskCreate((TaskFunction_t)USART_Send_Entry,
+              (const char *)"Usart",
+              (uint16_t)128,
+              (void *)NULL,
+              (UBaseType_t)2,
+              (TaskHandle_t *)&USART_Send_Handle);
+
+ 
+
   myBinarySem_Handle = xSemaphoreCreateBinary();
   myQueue = xQueueCreate(1, sizeof(UartPacket_t));
   mybufferQueue = xQueueCreate(128, sizeof(uint16_t));
   myMutex = xSemaphoreCreateMutex();
+  Transmit_flag = xSemaphoreCreateBinary();
+  xSemaphoreGive(Transmit_flag);
   if (myBinarySem_Handle == NULL)
   {
     printf("Create Error!\r\n");
@@ -293,7 +311,7 @@ void KEY1_Entry(void *pvParameters)
   }
 }
 
-void USART_Entry(void *pvParameters)
+void USART_Receive_Entry(void *pvParameters)
 {
   UartPacket_t recv_pkg;
   for (;;)
@@ -313,7 +331,28 @@ void USART_Entry(void *pvParameters)
     }
   }
 }
+void DMA_Send_Entry(uint8_t *data,uint16_t len)
+{
 
+    if(xSemaphoreTake(Transmit_flag,portMAX_DELAY) == pdTRUE)
+    {
+      HAL_UART_Transmit_DMA(&huart1, data, len);
+    }
+}
+
+void USART_Send_Entry(void *pvParameters)
+{
+  char *str = "hello,world!\r\n";
+  uint16_t len = strlen(str); 
+  memcpy(send_data,str,len);
+  for(;;)
+  {
+    
+    DMA_Send_Entry(send_data,len);
+
+    vTaskDelay(pdMS_TO_TICKS(1000));
+  }
+}
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 
@@ -339,5 +378,16 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
     __HAL_DMA_DISABLE_IT(huart1.hdmarx, DMA_IT_HT);
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
   }
+}
+
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
+{
+    if (huart->Instance == USART1)
+    {
+      BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+      xSemaphoreGiveFromISR(Transmit_flag, &xHigherPriorityTaskWoken);
+        
+      portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+    }
 }
 /* USER CODE END Application */

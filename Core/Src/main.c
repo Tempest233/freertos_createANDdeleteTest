@@ -197,6 +197,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
+  printf("error occur!\r\n");
   /* User can add his own implementation to report the HAL error return state */
   __disable_irq();
   while (1)
