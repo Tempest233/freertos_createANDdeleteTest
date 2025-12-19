@@ -64,6 +64,7 @@ TaskHandle_t KEY0_Handle;
 TaskHandle_t KEY1_Handle;
 TaskHandle_t USART_Handle;
 TaskHandle_t USART_Send_Handle;
+TaskHandle_t Task_Monitor_Handle;
 
 SemaphoreHandle_t myBinarySem_Handle;
 SemaphoreHandle_t myQueue;
@@ -78,7 +79,7 @@ void KEY1_Entry(void *pvParameters);
 void USART_Send_Entry(void *pvParameters);
 void USART_Receive_Entry(void *pvParameters);
 void DMA_Send_Entry(uint8_t *data,uint16_t len);
-
+void Task_Monitor_Entry(void *pvParameters);
 /* USER CODE END Variables */
 osThreadId StartTaskHandle;
 
@@ -158,7 +159,12 @@ void MX_FREERTOS_Init(void)
               (UBaseType_t)2,
               (TaskHandle_t *)&USART_Send_Handle);
 
- 
+  xTaskCreate((TaskFunction_t)Task_Monitor_Entry,
+              (const char *)"Usart",
+              (uint16_t)128,
+              (void *)NULL,
+              (UBaseType_t)31,
+              (TaskHandle_t *)&Task_Monitor_Handle);
 
   myBinarySem_Handle = xSemaphoreCreateBinary();
   myQueue = xQueueCreate(1, sizeof(UartPacket_t));
@@ -221,6 +227,35 @@ void StartDefaultTask(void const *argument)
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
+void Task_Monitor_Entry(void *pvParameters)
+{
+    UBaseType_t stack_remain;
+    size_t heap_remain;
+  for(;;)
+  {
+
+    printf("\r\n========== System Monitor ==========\r\n");
+
+        // 1. 检查 LED 任务的堆栈
+        // 注意：CMSIS V1 里 osThreadId 就是 TaskHandle_t
+        stack_remain = uxTaskGetStackHighWaterMark(LED0_Handle);
+        printf("LED Task Stack Remain: %ld Words\r\n", stack_remain);
+        
+        // 2. 检查 串口 任务的堆栈
+        stack_remain = uxTaskGetStackHighWaterMark(USART_Send_Handle);
+        printf("UART Task Stack Remain: %ld Words\r\n", stack_remain);
+
+        // 3. 检查系统总内存
+        heap_remain = xPortGetFreeHeapSize();
+        printf("System Heap Remain: %d Bytes\r\n", heap_remain);
+        
+        printf("====================================\r\n");
+        vTaskDelay(pdMS_TO_TICKS(1000));
+  }
+
+}
+
+
 void LED0_Entry(void *pvParameters)
 {
   for (;;)
