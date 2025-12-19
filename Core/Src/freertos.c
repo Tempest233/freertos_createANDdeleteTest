@@ -352,8 +352,10 @@ void USART_Send_Entry(void *pvParameters)
      if(xSemaphoreTake(Transmit_flag,portMAX_DELAY) == pdTRUE)
      {
       uint16_t len=recv_pkg.len;
-      memcpy(send_data,recv_pkg.payload,recv_pkg.len);
-     HAL_UART_Transmit_DMA(&huart1,send_data,len);
+      recv_pkg.payload[len]='\r';
+      recv_pkg.payload[len+1]='\n';
+      memcpy(send_data,recv_pkg.payload,len+2);//必须拷贝到安全区域，否则DMA异步发送的过程中可能会发成新数据
+     HAL_UART_Transmit_DMA(&huart1,send_data,len+2);
      }
     }
     
@@ -379,7 +381,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
     msg.len = Size;
     memcpy(msg.payload, RxBuffer, Size);
     xQueueSendFromISR(myQueue, &msg, &xHigherPriorityTaskWoken);
-    
+
     
     HAL_UARTEx_ReceiveToIdle_DMA(&huart1, RxBuffer, RX_BUF_SIZE);
     __HAL_DMA_DISABLE_IT(huart1.hdmarx, DMA_IT_HT);
