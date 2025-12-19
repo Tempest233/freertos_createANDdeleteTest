@@ -382,7 +382,6 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
     memcpy(msg.payload, RxBuffer, Size);
     xQueueSendFromISR(myQueue, &msg, &xHigherPriorityTaskWoken);
 
-    
     HAL_UARTEx_ReceiveToIdle_DMA(&huart1, RxBuffer, RX_BUF_SIZE);
     __HAL_DMA_DISABLE_IT(huart1.hdmarx, DMA_IT_HT);
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
