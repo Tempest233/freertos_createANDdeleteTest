@@ -52,6 +52,12 @@
   #include <stdint.h>
   extern uint32_t SystemCoreClock;
 #endif
+
+extern void ConfigureTimerForRunTimeStats(void);
+extern unsigned long GetRunTimeCounterValue(void);
+#define portCONFIGURE_TIMER_FOR_RUN_TIME_STATS()   ConfigureTimerForRunTimeStats()
+#define portGET_RUN_TIME_COUNTER_VALUE()           GetRunTimeCounterValue()
+
 #define configENABLE_FPU                         0
 #define configENABLE_MPU                         0
 
@@ -70,6 +76,11 @@
 #define configUSE_MUTEXES                        1
 #define configQUEUE_REGISTRY_SIZE                8
 #define configUSE_PORT_OPTIMISED_TASK_SELECTION  1
+#define configCHECK_FOR_STACK_OVERFLOW           2
+#define configGENERATE_RUN_TIME_STATS            1
+#define configUSE_TRACE_FACILITY                 1
+#define configUSE_STATS_FORMATTING_FUNCTIONS     1
+
 /* USER CODE BEGIN MESSAGE_BUFFER_LENGTH_TYPE */
 /* Defaults to size_t for backward compatibility, but can be changed
    if lengths will always be less than the number of bytes in a size_t. */

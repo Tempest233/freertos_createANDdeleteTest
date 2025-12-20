@@ -29,6 +29,7 @@
 #include "stdio.h"
 #include "semphr.h"
 #include "usart.h"
+#include "timer.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -65,6 +66,7 @@ TaskHandle_t KEY1_Handle;
 TaskHandle_t USART_Handle;
 TaskHandle_t USART_Send_Handle;
 TaskHandle_t Task_Monitor_Handle;
+TaskHandle_t MonitorCPU_Task_Handle;
 
 SemaphoreHandle_t myBinarySem_Handle;
 SemaphoreHandle_t myQueue;
@@ -80,6 +82,7 @@ void USART_Send_Entry(void *pvParameters);
 void USART_Receive_Entry(void *pvParameters);
 void DMA_Send_Entry(uint8_t *data,uint16_t len);
 void Task_Monitor_Entry(void *pvParameters);
+
 /* USER CODE END Variables */
 osThreadId StartTaskHandle;
 
@@ -146,25 +149,27 @@ void MX_FREERTOS_Init(void)
               (TaskHandle_t *)&KEY1_Handle);
 
   xTaskCreate((TaskFunction_t)USART_Receive_Entry,
-              (const char *)"Usart",
-              (uint16_t)128,
+              (const char *)"USART_Receive",
+              (uint16_t)512,
               (void *)NULL,
               (UBaseType_t)2,
               (TaskHandle_t *)&USART_Handle);
 
   xTaskCreate((TaskFunction_t)USART_Send_Entry,
-              (const char *)"Usart",
-              (uint16_t)128,
+              (const char *)"USART_Send",
+              (uint16_t)512,
               (void *)NULL,
               (UBaseType_t)2,
               (TaskHandle_t *)&USART_Send_Handle);
 
   xTaskCreate((TaskFunction_t)Task_Monitor_Entry,
-              (const char *)"Usart",
-              (uint16_t)128,
+              (const char *)"Task_Monitor",
+              (uint16_t)512,
               (void *)NULL,
               (UBaseType_t)31,
               (TaskHandle_t *)&Task_Monitor_Handle);
+
+
 
   myBinarySem_Handle = xSemaphoreCreateBinary();
   myQueue = xQueueCreate(1, sizeof(UartPacket_t));
@@ -231,6 +236,8 @@ void Task_Monitor_Entry(void *pvParameters)
 {
     UBaseType_t stack_remain;
     size_t heap_remain;
+    char *pcWriteBuffer = pvPortMalloc(512);
+    
   for(;;)
   {
 
@@ -249,8 +256,22 @@ void Task_Monitor_Entry(void *pvParameters)
         heap_remain = xPortGetFreeHeapSize();
         printf("System Heap Remain: %d Bytes\r\n", heap_remain);
         
+
         printf("====================================\r\n");
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        if (pcWriteBuffer != NULL)
+        {
+            // 获取统计信息字符串
+            vTaskGetRunTimeStats(pcWriteBuffer);
+            
+            // 打印
+            printf("==================================\r\n");
+            printf("Task          Abs Time      %% Time\r\n");
+            printf("----------------------------------\r\n");
+            printf("%s", pcWriteBuffer);
+            printf("==================================\r\n");
+            
+        }
+        vTaskDelay(pdMS_TO_TICKS(5000));
   }
 
 }
@@ -432,5 +453,16 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
         
       portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
     }
+}
+
+
+
+void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName)
+{
+    // 如果进了这里，说明爆栈了！
+    HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
+    
+    __disable_irq();
+    while(1); // 卡死在这里，方便你发现
 }
 /* USER CODE END Application */

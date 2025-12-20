@@ -22,6 +22,7 @@
 #include "stm32f4xx_it.h"
 #include "dma.h"
 #include "usart.h"
+#include "timer.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 /* USER CODE END Includes */
@@ -197,5 +198,19 @@ void DMA2_Stream2_IRQHandler(void)
 void DMA2_Stream7_IRQHandler(void)
 {
     HAL_DMA_IRQHandler(&hdma_usart1_tx);
+}
+void TIM3_IRQHandler(void)
+{
+    // 检查是否是更新中断 (Update Event)
+    if (__HAL_TIM_GET_FLAG(&htim3_stats, TIM_FLAG_UPDATE) != RESET)
+    {
+        if (__HAL_TIM_GET_IT_SOURCE(&htim3_stats, TIM_IT_UPDATE) != RESET)
+        {
+            __HAL_TIM_CLEAR_IT(&htim3_stats, TIM_IT_UPDATE);
+            
+            // 核心动作：计数器 + 1
+            ulHighFrequencyTimerTicks++;
+        }
+    }
 }
 /* USER CODE END 1 */
