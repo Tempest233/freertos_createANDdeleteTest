@@ -15,6 +15,11 @@
 
 ```c
 
+//监控内存：
+UBaseType_t uxTaskGetStackHighWaterMark(Task_Handle);//任务历史内存使用最高位
+size_t xPortGetFreeHeapSize();//系统剩余总内存
+
+//监控CPU:
 #define configGENERATE_RUN_TIME_STATS        1   
 #define configUSE_TRACE_FACILITY             1  // 这个通常也需要开启  
 #define configUSE_STATS_FORMATTING_FUNCTIONS 1  // 开启格式化输出函数 (vTaskGetRunTimeStats)  
@@ -87,7 +92,7 @@ void Monitor_Task(void *param)
         if (pcWriteBuffer != NULL)
         {
             // 获取统计信息字符串
-            vTaskGetRunTimeStats(pcWriteBuffer);
+            vTaskGetRunTimeStats(pcWriteBuffer);//char *
             
             // 打印
             printf("==================================\r\n");
