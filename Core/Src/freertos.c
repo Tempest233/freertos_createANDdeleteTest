@@ -39,6 +39,13 @@ typedef struct
   uint16_t len;         // 长度
   uint8_t payload[512]; // 数据本体
 } UartPacket_t;
+
+typedef struct
+{
+  const char *cmd_name;
+  void (*cmd_func)(int argc, char *argv[]);
+  const char *help_info;
+} ShellCommand_t;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -55,6 +62,7 @@ typedef struct
 /* USER CODE BEGIN Variables */
 volatile int flag[2] = {1, 1};
 uint8_t send_data[256];
+uint8_t handle_data[50];
 uint8_t rx_byte;
 uint8_t RxBuffer[RX_BUF_SIZE];
 UartPacket_t msg;
@@ -64,7 +72,7 @@ TaskHandle_t LED1_Handle;
 TaskHandle_t KEY0_Handle;
 TaskHandle_t KEY1_Handle;
 TaskHandle_t USART_Handle;
-TaskHandle_t USART_Send_Handle;
+TaskHandle_t USART_Shell_Task_Handle;
 TaskHandle_t Task_Monitor_Handle;
 TaskHandle_t MonitorCPU_Task_Handle;
 
@@ -78,10 +86,19 @@ void LED0_Entry(void *pvParameters); // 函数声明
 void LED1_Entry(void *pvParameters);
 void KEY0_Entry(void *pvParameters);
 void KEY1_Entry(void *pvParameters);
-void USART_Send_Entry(void *pvParameters);
+void USART_Shell_Task_Entry(void *pvParameters);
 void USART_Receive_Entry(void *pvParameters);
-void DMA_Send_Entry(uint8_t *data,uint16_t len);
+void DMA_Send_Entry(uint8_t *data, uint16_t len);
 void Task_Monitor_Entry(void *pvParameters);
+void Cmd_Help(int argc, char *argv[]);
+void Cmd_LED(int argc, char *argv[]);
+void Execute_Command(int argc, char *argv[]);
+
+const ShellCommand_t CmdTable[] = {
+    {"help", Cmd_Help, "<Show help info>"},
+    {"led", Cmd_LED, "<Control LED: led 0/1 on/off>"},
+    {NULL, NULL, NULL} // 结束标记
+};
 
 /* USER CODE END Variables */
 osThreadId StartTaskHandle;
@@ -155,12 +172,12 @@ void MX_FREERTOS_Init(void)
               (UBaseType_t)2,
               (TaskHandle_t *)&USART_Handle);
 
-  xTaskCreate((TaskFunction_t)USART_Send_Entry,
+  xTaskCreate((TaskFunction_t)USART_Shell_Task_Entry,
               (const char *)"USART_Send",
               (uint16_t)512,
               (void *)NULL,
               (UBaseType_t)2,
-              (TaskHandle_t *)&USART_Send_Handle);
+              (TaskHandle_t *)&USART_Shell_Task_Handle);
 
   xTaskCreate((TaskFunction_t)Task_Monitor_Entry,
               (const char *)"Task_Monitor",
@@ -168,8 +185,6 @@ void MX_FREERTOS_Init(void)
               (void *)NULL,
               (UBaseType_t)31,
               (TaskHandle_t *)&Task_Monitor_Handle);
-
-
 
   myBinarySem_Handle = xSemaphoreCreateBinary();
   myQueue = xQueueCreate(1, sizeof(UartPacket_t));
@@ -234,48 +249,45 @@ void StartDefaultTask(void const *argument)
 /* USER CODE BEGIN Application */
 void Task_Monitor_Entry(void *pvParameters)
 {
-    UBaseType_t stack_remain;
-    size_t heap_remain;
-    char *pcWriteBuffer = pvPortMalloc(512);
-    
-  for(;;)
+  
+  UBaseType_t stack_remain;
+  size_t heap_remain;
+  char *pcWriteBuffer = pvPortMalloc(512);
+
+  for (;;)
   {
 
     printf("\r\n========== System Monitor ==========\r\n");
 
-        // 1. 检查 LED 任务的堆栈
-        // 注意：CMSIS V1 里 osThreadId 就是 TaskHandle_t
-        stack_remain = uxTaskGetStackHighWaterMark(LED0_Handle);
-        printf("LED Task Stack Remain: %ld Words\r\n", stack_remain);
-        
-        // 2. 检查 串口 任务的堆栈
-        stack_remain = uxTaskGetStackHighWaterMark(USART_Send_Handle);
-        printf("UART Task Stack Remain: %ld Words\r\n", stack_remain);
+    // 1. 检查 LED 任务的堆栈
+    // 注意：CMSIS V1 里 osThreadId 就是 TaskHandle_t
+    stack_remain = uxTaskGetStackHighWaterMark(LED0_Handle);
+    printf("LED Task Stack Remain: %ld Words\r\n", stack_remain);
 
-        // 3. 检查系统总内存
-        heap_remain = xPortGetFreeHeapSize();
-        printf("System Heap Remain: %d Bytes\r\n", heap_remain);
-        
+    // 2. 检查 串口 任务的堆栈
+    stack_remain = uxTaskGetStackHighWaterMark(USART_Shell_Task_Handle);
+    printf("UART Task Stack Remain: %ld Words\r\n", stack_remain);
 
-        printf("====================================\r\n");
-        if (pcWriteBuffer != NULL)
-        {
-            // 获取统计信息字符串
-            vTaskGetRunTimeStats(pcWriteBuffer);
-            
-            // 打印
-            printf("==================================\r\n");
-            printf("Task          Abs Time      %% Time\r\n");
-            printf("----------------------------------\r\n");
-            printf("%s", pcWriteBuffer);
-            printf("==================================\r\n");
-            
-        }
-        vTaskDelay(pdMS_TO_TICKS(5000));
+    // 3. 检查系统总内存
+    heap_remain = xPortGetFreeHeapSize();
+    printf("System Heap Remain: %d Bytes\r\n", heap_remain);
+
+    printf("====================================\r\n");
+    if (pcWriteBuffer != NULL)
+    {
+      // 获取统计信息字符串
+      vTaskGetRunTimeStats(pcWriteBuffer);
+
+      // 打印
+      printf("==================================\r\n");
+      printf("Task          Abs Time      %% Time\r\n");
+      printf("----------------------------------\r\n");
+      printf("%s", pcWriteBuffer);
+      printf("==================================\r\n");
+    }
+    vTaskDelay(pdMS_TO_TICKS(5000));
   }
-
 }
-
 
 void LED0_Entry(void *pvParameters)
 {
@@ -381,7 +393,7 @@ void USART_Receive_Entry(void *pvParameters)
       xSemaphoreGive(myMutex);
 
       if (recv_pkg.len < RX_BUF_SIZE)
-        recv_pkg.payload[recv_pkg.len] = '\0';//必须加，否则printf会停不下来
+        recv_pkg.payload[recv_pkg.len] = '\0'; // 必须加，否则printf会停不下来
 
       xSemaphoreTake(myMutex, portMAX_DELAY);
       printf("DMA Recv (%d bytes): %s\r\n", recv_pkg.len, recv_pkg.payload);
@@ -389,34 +401,95 @@ void USART_Receive_Entry(void *pvParameters)
     }
   }
 }
-//void DMA_Send_Entry(uint8_t *data,uint16_t len)
-//{
-
-//    if(xSemaphoreTake(Transmit_flag,portMAX_DELAY) == pdTRUE)
-//    {
-//      HAL_UART_Transmit_DMA(&huart1, data, len);
-//    }
-//}
-
-void USART_Send_Entry(void *pvParameters)
+void Cmd_LED(int argc, char *argv[])
 {
-  UartPacket_t recv_pkg;
-  for(;;)
+  
+  if(strcmp(argv[1],"on")==0)
   {
-    if(xQueueReceive(myQueue, &recv_pkg, portMAX_DELAY) == pdTRUE)
-    {
-     if(xSemaphoreTake(Transmit_flag,portMAX_DELAY) == pdTRUE)
-     {
-      uint16_t len=recv_pkg.len;
-      recv_pkg.payload[len]='\r';
-      recv_pkg.payload[len+1]='\n';
-      memcpy(send_data,recv_pkg.payload,len+2);//必须拷贝到安全区域，否则DMA异步发送的过程中可能会发成新数据
-     HAL_UART_Transmit_DMA(&huart1,send_data,len+2);
-     }
-    }
-    
+    HAL_GPIO_WritePin(LED0_GPIO_Port,LED0_Pin,GPIO_PIN_RESET);
+  }
+  else if(strcmp(argv[1],"off")==0)
+  {
+    HAL_GPIO_WritePin(LED0_GPIO_Port,LED0_Pin,GPIO_PIN_SET);
+  }
+  else
+  {
+    printf("what do you want to do? \r\n");
+  }
+
+}
+void Cmd_Help(int argc, char *argv[])
+{
+  uint8_t i=0;
+  printf("Now there are several commands are supported: \r\n");
+  while(CmdTable[i].cmd_name!=NULL)
+  {
+    printf("%s  %s\r\n",CmdTable[i].cmd_name,CmdTable[i].help_info);
+    i++;
   }
 }
+void USART_Shell_Task_Entry(void *pvParameters)
+{
+  UartPacket_t recv_pkg;
+  int argc = 0;
+  char *argv[10];
+  char *token = NULL;
+  
+  for (;;)
+  {
+    if (xQueueReceive(myQueue, &recv_pkg, portMAX_DELAY) == pdTRUE)
+    {
+      if (xSemaphoreTake(Transmit_flag, portMAX_DELAY) == pdTRUE)
+      {
+        uint16_t len = recv_pkg.len;
+        memcpy(handle_data, recv_pkg.payload, len);
+        handle_data[len] = '\0'; // copy到缓存中
+
+        token = strtok(handle_data, " ");
+        while (token != NULL)
+        {
+          argv[argc] = token;
+          token = strtok(NULL, " ");
+          argc++;
+        }
+
+        if (argc > 0)
+        {
+          Execute_Command(argc,argv);
+          xSemaphoreGive(Transmit_flag);
+        }
+
+        argc = 0;
+        //       printf("Parsed count: %d\r\n", argc);
+        //       for(int i = 0; i < argc; i++)
+        // {
+        //     // %d 是索引，%s 是字符串
+        //     printf("argv[%d]: %s\r\n", i, argv[i]);
+        // }
+        // printf("--------------------\r\n");
+        // HAL_UART_Transmit_DMA(&huart1,handle_data,len+1);
+      }
+    }
+  }
+}
+void Execute_Command(int argc, char *argv[])
+{
+  uint8_t j=0;
+  while (CmdTable[j].cmd_name != NULL)
+  {
+    if (strcmp(CmdTable[j].cmd_name, argv[0]) == 0)
+    {
+      CmdTable[j].cmd_func(argc, argv);
+      return;
+    }
+    j++;
+  }
+  printf("Unknown Command: %s\r\n", argv[0]);
+  
+  j = 0;
+}
+
+
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 
@@ -433,7 +506,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
   if (huart->Instance == USART1)
   {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    
+
     msg.len = Size;
     memcpy(msg.payload, RxBuffer, Size);
     xQueueSendFromISR(myQueue, &msg, &xHigherPriorityTaskWoken);
@@ -446,23 +519,22 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 {
-    if (huart->Instance == USART1)
-    {
-      BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-      xSemaphoreGiveFromISR(Transmit_flag, &xHigherPriorityTaskWoken);
-        
-      portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-    }
+  if (huart->Instance == USART1)
+  {
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    xSemaphoreGiveFromISR(Transmit_flag, &xHigherPriorityTaskWoken);
+
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+  }
 }
-
-
 
 void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName)
 {
-    // 如果进了这里，说明爆栈了！
-    HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
-    
-    __disable_irq();
-    while(1); // 卡死在这里，方便你发现
+  // 如果进了这里，说明爆栈了！
+  HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
+
+  __disable_irq();
+  while (1)
+    ; // 卡死在这里，方便你发现
 }
 /* USER CODE END Application */
